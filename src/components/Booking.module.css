@@ -1,0 +1,371 @@
+.section {
+  position: relative;
+  overflow: hidden;
+}
+
+.gridLayer {
+  position: absolute;
+  inset: 0;
+  opacity: 0.5;
+  mask-image: radial-gradient(120% 90% at 50% 0%, #000 30%, transparent 100%);
+}
+
+.head {
+  position: relative;
+  text-align: center;
+  margin-bottom: clamp(36px, 5vw, 56px);
+}
+
+.head :global(.eyebrow) {
+  justify-content: center;
+}
+
+.head h2 {
+  color: var(--bone);
+  margin-bottom: 16px;
+}
+
+.headSub {
+  color: #b9bec7;
+  max-width: 56ch;
+  margin: 0 auto;
+  font-size: 18px;
+}
+
+/* ---- layout ---- */
+.layout {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 22px;
+  align-items: start;
+}
+
+.scheduler,
+.details {
+  background: var(--bone);
+  border-radius: 14px;
+  padding: clamp(22px, 3vw, 32px);
+  color: var(--ink);
+}
+
+.details {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ---- calendar ---- */
+.calHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.calTitle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-display);
+  font-size: 24px;
+  text-transform: uppercase;
+}
+
+.calTitleIcon {
+  width: 24px;
+  height: 24px;
+  color: var(--orange);
+}
+
+.calNav {
+  display: flex;
+  gap: 8px;
+}
+
+.navBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 2px solid var(--ink);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+}
+
+.navBtn:hover:not(:disabled) {
+  background: var(--ink);
+  color: var(--bone);
+}
+
+.navBtn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.weekRow,
+.calGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.weekDay {
+  text-align: center;
+  font-family: var(--font-condensed);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--steel-shadow);
+  padding-bottom: 8px;
+}
+
+.calGrid {
+  margin-top: 2px;
+}
+
+.empty {
+  aspect-ratio: 1;
+}
+
+.day {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-condensed);
+  font-weight: 600;
+  font-size: 17px;
+  color: var(--ink);
+  background: #fff;
+  border: 2px solid var(--bone-3);
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease, border-color 0.14s ease,
+    transform 0.14s ease;
+}
+
+.day:hover:not(:disabled) {
+  border-color: var(--orange);
+  transform: translateY(-2px);
+}
+
+.daySel {
+  background: var(--orange);
+  border-color: var(--ink);
+  color: var(--bone);
+}
+
+.daySel:hover {
+  background: var(--orange);
+}
+
+.dayOff {
+  color: #b7b2a4;
+  background: transparent;
+  border-color: transparent;
+  cursor: not-allowed;
+}
+
+/* ---- time slots ---- */
+.slots {
+  margin-top: 22px;
+  border-top: 2px dashed var(--bone-3);
+  padding-top: 20px;
+}
+
+.slotsHead {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-family: var(--font-condensed);
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--steel-shadow);
+  margin-bottom: 14px;
+}
+
+.slotsIcon {
+  width: 20px;
+  height: 20px;
+  color: var(--orange);
+}
+
+.slotGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 8px;
+}
+
+.slotsNote {
+  font-family: var(--font-condensed);
+  font-size: 14.5px;
+  letter-spacing: 0.02em;
+  color: var(--steel);
+  margin-top: 4px;
+}
+
+.slot {
+  font-family: var(--font-condensed);
+  font-weight: 600;
+  font-size: 16px;
+  padding: 11px 8px;
+  background: #fff;
+  border: 2px solid var(--bone-3);
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all 0.14s ease;
+}
+
+.slot:hover {
+  border-color: var(--orange);
+}
+
+.slotSel {
+  background: var(--ink);
+  color: var(--bone);
+  border-color: var(--ink);
+}
+
+/* ---- details ---- */
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  background: var(--ink);
+  color: var(--bone);
+  border-radius: 10px;
+  padding: 16px 20px;
+  margin-bottom: 2px;
+}
+
+.summaryLabel {
+  font-family: var(--font-condensed);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--orange);
+}
+
+.summaryValue {
+  font-family: var(--font-display);
+  font-size: 21px;
+  text-transform: uppercase;
+}
+
+.twoCol {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.optional {
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  color: #a39e8e;
+  font-size: 13px;
+}
+
+.fineprint {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--steel-shadow);
+}
+
+.fineIcon {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--orange);
+}
+
+.serverError {
+  background: #fbe7e2;
+  border: 2px solid #e3b3a8;
+  border-radius: 8px;
+  padding: 12px 14px;
+  color: #a3301a;
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.successPhone {
+  color: var(--orange);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* ---- success ---- */
+.successWrap {
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
+.successCard {
+  max-width: 560px;
+  text-align: center;
+  background: var(--bone);
+  border-radius: 16px;
+  padding: clamp(36px, 5vw, 56px);
+  box-shadow: 12px 12px 0 var(--orange);
+}
+
+.successCard h2 {
+  margin-bottom: 16px;
+}
+
+.successIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  background: var(--orange);
+  color: var(--bone);
+  margin-bottom: 22px;
+}
+
+.successIcon svg {
+  width: 38px;
+  height: 38px;
+}
+
+.successText {
+  font-size: 18px;
+  line-height: 1.55;
+  color: #44484f;
+  margin-bottom: 18px;
+}
+
+.successMeta {
+  font-family: var(--font-condensed);
+  font-weight: 600;
+  font-size: 17px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .twoCol {
+    grid-template-columns: 1fr;
+  }
+}

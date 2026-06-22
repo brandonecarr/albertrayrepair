@@ -1,0 +1,82 @@
+.section {
+  background: var(--bone-2);
+}
+
+.inner {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(32px, 5vw, 64px);
+  align-items: start;
+}
+
+.infoLead {
+  font-size: 18px;
+  line-height: 1.55;
+  color: #44484f;
+  max-width: 44ch;
+  margin: 18px 0 30px;
+}
+
+.contactList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 18px;
+}
+
+.contactItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.ci {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  background: var(--ink);
+  color: var(--orange);
+  border-radius: 8px;
+}
+
+.ciLabel {
+  display: block;
+  font-family: var(--font-condensed);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--steel-shadow);
+  margin-bottom: 2px;
+}
+
+.ciValue {
+  font-family: var(--font-condensed);
+  font-weight: 600;
+  font-size: 20px;
+  color: var(--ink);
+}
+
+a.ciValue:hover {
+  color: var(--orange);
+}
+
+.ciValueSmall {
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-condensed);
+  font-weight: 500;
+  font-size: 16px;
+  color: var(--ink);
+  line-height: 1.4;
+}
+
+@media (max-width: 860px) {
+  .inner {
+    grid-template-columns: 1fr;
+  }
+}

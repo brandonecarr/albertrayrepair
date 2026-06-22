@@ -1,0 +1,119 @@
+.hero {
+  position: relative;
+  padding-top: clamp(48px, 7vw, 88px);
+  padding-bottom: clamp(56px, 8vw, 100px);
+  overflow: hidden;
+}
+
+.gridLayer {
+  position: absolute;
+  inset: 0;
+  opacity: 0.7;
+  mask-image: radial-gradient(120% 90% at 30% 20%, #000 40%, transparent 100%);
+}
+
+.glow {
+  position: absolute;
+  top: -10%;
+  right: -8%;
+  width: 60vw;
+  height: 60vw;
+  max-width: 760px;
+  max-height: 760px;
+  background: radial-gradient(circle, rgba(242, 106, 31, 0.22), transparent 62%);
+  pointer-events: none;
+}
+
+.inner {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: clamp(28px, 4vw, 56px);
+  align-items: start;
+}
+
+/* Wider than the standard container on the hero only */
+.hero .inner {
+  max-width: 1340px;
+}
+
+.content {
+  max-width: 720px;
+}
+
+.title {
+  margin: 4px 0 24px;
+  color: var(--bone);
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.25);
+}
+
+.titleSm {
+  display: block;
+  font-size: clamp(32px, 5.6vw, 70px);
+  line-height: 1.02;
+}
+
+.titleLg {
+  display: block;
+  font-size: clamp(48px, 9.6vw, 112px);
+  line-height: 0.92;
+  margin: 2px 0;
+}
+
+.lead {
+  color: #cfd4da;
+  margin-bottom: 34px;
+}
+
+.badges {
+  list-style: none;
+  margin: 0 0 28px;
+  padding: 20px 0;
+  border-top: 1px solid rgba(207, 212, 218, 0.16);
+  border-bottom: 1px solid rgba(207, 212, 218, 0.16);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  font-family: var(--font-condensed);
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--steel);
+}
+
+.badgeIcon {
+  width: 14px;
+  height: 14px;
+  color: var(--orange);
+  flex-shrink: 0;
+}
+
+/* ---- lead form ---- */
+.formWrap {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 540px;
+  justify-self: end;
+}
+
+@media (max-width: 1120px) {
+  .inner {
+    grid-template-columns: 1fr;
+  }
+  .content {
+    max-width: 720px;
+  }
+  .formWrap {
+    justify-self: stretch;
+    max-width: 540px;
+  }
+}

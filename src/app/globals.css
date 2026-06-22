@@ -1,40 +1,63 @@
+/* =================================================================
+   Albert Ray's Repairs & Restoration — Design System
+   Industrial / trade-built aesthetic.
+   Palette: Ink, Wrench Orange, Bone, Tool Steel, Steel Shadow.
+   Type: Bricolage Grotesque (display) · Hanken Grotesk (labels + body)
+================================================================= */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+  --ink: #17191f;
+  --ink-2: #1f232c;
+  --ink-3: #2a2f3a;
+  --orange: #f26a1f;
+  --orange-bright: #ff7d2e;
+  --bone: #f4efe4;
+  --bone-2: #ece5d4;
+  --bone-3: #e2dccd;
+  --steel: #c3cbd5;
+  --steel-shadow: #535b66;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+  --paper-line: #e0d9c7;
+  --hair: #d8d0bd;
 
-html {
-  height: 100%;
-}
+  --font-display: var(--ff-display), "Helvetica Neue", Arial, sans-serif;
+  --font-condensed: var(--ff-label), system-ui, sans-serif;
+  --font-body: var(--ff-body), system-ui, sans-serif;
 
-html,
-body {
-  max-width: 100vw;
-  overflow-x: hidden;
-}
-
-body {
-  min-height: 100%;
-  display: flex;
-  flex-direction: column;
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  --maxw: 1200px;
+  --gutter: clamp(20px, 5vw, 64px);
 }
 
 * {
   box-sizing: border-box;
-  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+body {
   margin: 0;
+  background-color: var(--bone);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 18px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
 }
 
 a {
@@ -42,8 +65,350 @@ a {
   text-decoration: none;
 }
 
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
+h1,
+h2,
+h3,
+h4 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 800;
+  text-transform: uppercase;
+  line-height: 0.98;
+  letter-spacing: -0.02em;
+}
+
+p {
+  margin: 0;
+}
+
+::selection {
+  background: var(--orange);
+  color: var(--bone);
+}
+
+/* ---------- Layout primitives ---------- */
+.container {
+  width: 100%;
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding-inline: var(--gutter);
+}
+
+.section {
+  position: relative;
+  padding-block: clamp(64px, 9vw, 120px);
+}
+
+.section--ink {
+  background: var(--ink);
+  color: var(--bone);
+}
+
+.section--bone2 {
+  background: var(--bone-2);
+}
+
+/* ---------- Eyebrow label (Harley "bar" patch) ---------- */
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-family: var(--font-condensed);
+  font-weight: 700;
+  font-size: 12.5px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--orange);
+  border: 2px solid var(--orange);
+  border-radius: 5px;
+  padding: 6px 13px 5px;
+  margin: 0 0 22px;
+}
+
+.eyebrow::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  background: var(--orange);
+  transform: rotate(45deg);
+}
+
+.eyebrow--center {
+  justify-content: center;
+}
+
+/* ---------- Display headings ---------- */
+.h-xl {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(44px, 8.5vw, 100px);
+  line-height: 0.96;
+  letter-spacing: -0.035em;
+  text-transform: uppercase;
+}
+
+.h-lg {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(34px, 5.5vw, 64px);
+  line-height: 0.98;
+  letter-spacing: -0.025em;
+  text-transform: uppercase;
+}
+
+.h-md {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(24px, 3vw, 36px);
+  letter-spacing: -0.015em;
+  text-transform: uppercase;
+}
+
+.accent {
+  color: var(--orange);
+}
+
+.lead {
+  font-size: clamp(18px, 2vw, 22px);
+  line-height: 1.5;
+  max-width: 56ch;
+  color: inherit;
+}
+
+.muted {
+  opacity: 0.72;
+}
+
+/* ---------- Buttons ---------- */
+.btn {
+  --btn-bg: var(--orange);
+  --btn-fg: #fff;
+  --btn-ring: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-family: var(--font-condensed);
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 15px 30px;
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 2px var(--btn-ring);
+  transition: background 0.18s ease, color 0.18s ease, transform 0.16s ease,
+    box-shadow 0.18s ease;
+  white-space: nowrap;
+}
+
+.btn:hover {
+  background: var(--orange-bright);
+  transform: translateY(-2px);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+.btn:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--btn-ring), 0 0 0 3px rgba(242, 106, 31, 0.35);
+}
+
+/* Outline / secondary */
+.btn--ghost {
+  --btn-bg: transparent;
+  --btn-fg: var(--ink);
+  --btn-ring: var(--ink);
+}
+
+.btn--ghost:hover {
+  --btn-bg: var(--ink);
+  --btn-fg: var(--bone);
+  --btn-ring: var(--ink);
+}
+
+/* On dark (ink) backgrounds */
+.btn--on-ink.btn--ghost {
+  --btn-fg: var(--bone);
+  --btn-ring: rgba(244, 239, 228, 0.45);
+}
+
+.btn--on-ink.btn--ghost:hover {
+  --btn-bg: var(--bone);
+  --btn-fg: var(--ink);
+  --btn-ring: var(--bone);
+}
+
+.btn--block {
+  width: 100%;
+}
+
+.btn--lg {
+  font-size: 17px;
+  padding: 18px 36px;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ---------- Textures ---------- */
+.tex-grid {
+  background-image: linear-gradient(var(--paper-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--paper-line) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.tex-grid--ink {
+  background-image: linear-gradient(rgba(195, 203, 213, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(195, 203, 213, 0.06) 1px, transparent 1px);
+  background-size: 34px 34px;
+}
+
+/* Hazard stripe rule */
+.hazard {
+  height: 10px;
+  width: 100%;
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--orange) 0 18px,
+    var(--ink) 18px 36px
+  );
+}
+
+/* Hex bolt watermark */
+.hex-watermark {
+  position: absolute;
+  pointer-events: none;
+  opacity: 0.05;
+  color: var(--ink);
+}
+
+/* ---------- Reveal animations ---------- */
+.reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 0.7s cubic-bezier(0.2, 0.7, 0.2, 1),
+    transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+  transition-delay: var(--reveal-delay, 0ms);
+  will-change: opacity, transform;
+}
+
+.reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
   }
+}
+
+/* Page-load stagger for hero */
+@keyframes riseIn {
+  from {
+    opacity: 0;
+    transform: translateY(26px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.rise {
+  opacity: 0;
+  animation: riseIn 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+  animation-delay: var(--rise-delay, 0ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise {
+    opacity: 1;
+    animation: none;
+  }
+}
+
+/* ---------- Forms ---------- */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.field-label {
+  font-family: var(--font-condensed);
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--steel-shadow);
+}
+
+.input,
+.textarea,
+.select {
+  font-family: var(--font-body);
+  font-size: 17px;
+  color: var(--ink);
+  background: #fff;
+  border: 2px solid var(--bone-3);
+  border-radius: 5px;
+  padding: 13px 15px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  width: 100%;
+}
+
+.input:focus,
+.textarea:focus,
+.select:focus {
+  outline: none;
+  border-color: var(--orange);
+  box-shadow: 0 0 0 3px rgba(242, 106, 31, 0.18);
+}
+
+.textarea {
+  resize: vertical;
+  min-height: 120px;
+}
+
+.field-error {
+  color: #c0341d;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.input--error,
+.textarea--error {
+  border-color: #c0341d;
+}
+
+/* ---------- Utility ---------- */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.stack-sm > * + * {
+  margin-top: 12px;
+}
+.stack > * + * {
+  margin-top: 22px;
 }
