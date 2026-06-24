@@ -2,9 +2,11 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { AdminLead } from "@/lib/leads";
 import type { LeadStatus } from "@/lib/db/schema";
-import { PhoneIcon, MailIcon } from "@/components/Icons";
+import { startOfWeekIso } from "@/lib/date-utils";
+import { PhoneIcon, MailIcon, CalendarIcon } from "@/components/Icons";
 
 const STATUSES: LeadStatus[] = ["new", "contacted", "won", "lost"];
 const STATUS_LABEL: Record<LeadStatus, string> = {
@@ -50,12 +52,42 @@ function StatusChip({ status }: { status: LeadStatus }) {
 }
 
 export default function LeadInbox({ initialLeads }: { initialLeads: AdminLead[] }) {
+  const router = useRouter();
   const [leads, setLeads] = useState<AdminLead[]>(initialLeads);
   const [filter, setFilter] = useState<Filter>("all");
   const [selectedId, setSelectedId] = useState<string | null>(
     initialLeads[0]?.id ?? null
   );
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [jobState, setJobState] = useState<Record<string, "creating" | "done">>({});
+  const [jobError, setJobError] = useState<{ id: string; msg: string } | null>(null);
+
+  async function createJob(lead: AdminLead) {
+    setJobState((s) => ({ ...s, [lead.id]: "creating" }));
+    setJobError(null);
+    try {
+      const res = await fetch(`/api/admin/leads/${lead.id}/job`, { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Could not create the job.");
+      // The lead converts to "won".
+      setLeads((prev) =>
+        prev.map((l) => (l.id === lead.id ? { ...l, status: "won" } : l))
+      );
+      if (data.onCalendar && data.date) {
+        // Land on the calendar week so the new appointment is visible.
+        router.push(`/admin/calendar?week=${startOfWeekIso(data.date)}`);
+      } else {
+        setJobState((s) => ({ ...s, [lead.id]: "done" }));
+      }
+    } catch (err) {
+      setJobState((s) => {
+        const next = { ...s };
+        delete next[lead.id];
+        return next;
+      });
+      setJobError({ id: lead.id, msg: err instanceof Error ? err.message : "Could not create the job." });
+    }
+  }
 
   const counts = useMemo(() => {
     const c: Record<Filter, number> = { all: leads.length, new: 0, contacted: 0, won: 0, lost: 0 };
@@ -225,6 +257,33 @@ export default function LeadInbox({ initialLeads }: { initialLeads: AdminLead[] 
                   <a className="adminAction" href={`mailto:${selected.email}`}>
                     <MailIcon className="adminActionIcon" /> Email
                   </a>
+                )}
+              </div>
+
+              <div className="adminConvert">
+                {jobState[selected.id] === "done" ? (
+                  <p className="adminConvertDone">
+                    ✓ Job created.{" "}
+                    <Link href="/admin/jobs" className="adminCustLink" style={{ marginTop: 0 }}>
+                      View on Jobs board →
+                    </Link>
+                  </p>
+                ) : (
+                  <button
+                    className="adminConvertBtn"
+                    onClick={() => createJob(selected)}
+                    disabled={jobState[selected.id] === "creating"}
+                  >
+                    <CalendarIcon className="adminActionIcon" />
+                    {jobState[selected.id] === "creating"
+                      ? "Creating…"
+                      : selected.preferredDate
+                        ? "Create job & add to calendar"
+                        : "Create job"}
+                  </button>
+                )}
+                {jobError?.id === selected.id && (
+                  <p className="field-error" style={{ marginTop: 8 }}>{jobError.msg}</p>
                 )}
               </div>
 

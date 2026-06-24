@@ -9,6 +9,13 @@ import { desc, eq } from "drizzle-orm";
 import { db, isDbConfigured } from "./db";
 import { jobs, customers, bookings, type Job, type JobStatus } from "./db/schema";
 import { findOrCreateCustomer } from "./customers";
+import { getLeadById, setLeadStatus } from "./leads";
+import {
+  findBookingByLead,
+  findActiveBookingAt,
+  decideBooking,
+  createBookingRequest,
+} from "./scheduling";
 
 /** Pipeline order, used to render the job board columns left → right. */
 export const JOB_STATUSES: JobStatus[] = [
@@ -172,6 +179,98 @@ export async function createJobFromBooking(
     return { ok: true, id, customerId, alreadyExisted: false };
   } catch (err) {
     console.error("[db] failed to create job from booking:", err);
+    return { ok: false, reason: "error" };
+  }
+}
+
+export type JobFromLeadResult =
+  | { ok: true; jobId: string; date: string | null; onCalendar: boolean }
+  | { ok: false; reason: "not_found" | "db_unconfigured" | "error" };
+
+/**
+ * Turn an inbox lead into a tracked job and put it on the calendar.
+ * - Booking leads already have a calendar entry: confirm it and convert it.
+ * - Contact leads with a preferred date: create a confirmed booking + job.
+ * - Otherwise: create an unscheduled job (nothing to place on the calendar).
+ * Marks the lead "won". Idempotent for booking leads via createJobFromBooking.
+ */
+export async function createJobFromLead(
+  leadId: string
+): Promise<JobFromLeadResult> {
+  if (!isDbConfigured || !db) return { ok: false, reason: "db_unconfigured" };
+  try {
+    const lead = await getLeadById(leadId);
+    if (!lead) return { ok: false, reason: "not_found" };
+
+    // 1) Lead already has a booking on the calendar — confirm + convert it.
+    // Public submissions don't link booking↔lead, so fall back to matching the
+    // active booking sitting in the lead's requested slot.
+    const existing =
+      (await findBookingByLead(leadId)) ??
+      (lead.preferredDate && lead.preferredTime
+        ? await findActiveBookingAt(lead.preferredDate, lead.preferredTime)
+        : null);
+    if (existing) {
+      if (existing.status === "requested") {
+        await decideBooking(existing.id, "confirmed");
+      }
+      const res = await createJobFromBooking(existing.id);
+      if (!res.ok) return { ok: false, reason: "error" };
+      await setLeadStatus(leadId, "won");
+      return { ok: true, jobId: res.id, date: existing.date, onCalendar: true };
+    }
+
+    // 2) No booking yet. If the lead carries a date/time, schedule it.
+    if (lead.preferredDate && lead.preferredTime) {
+      const reservation = await createBookingRequest(
+        {
+          date: lead.preferredDate,
+          time: lead.preferredTime,
+          name: lead.name,
+          phone: lead.phone,
+          email: lead.email,
+          service: lead.service,
+          address: lead.address,
+          notes: lead.message,
+        },
+        leadId
+      );
+      if (reservation.ok) {
+        await decideBooking(reservation.id, "confirmed");
+        const res = await createJobFromBooking(reservation.id);
+        if (res.ok) {
+          await setLeadStatus(leadId, "won");
+          return { ok: true, jobId: res.id, date: lead.preferredDate, onCalendar: true };
+        }
+      }
+      // slot taken / booking failed — fall through to an unscheduled job
+    }
+
+    // 3) No date (or scheduling failed) — create an unscheduled job.
+    const customerId =
+      lead.customerId ??
+      (await findOrCreateCustomer({
+        name: lead.name,
+        phone: lead.phone,
+        email: lead.email,
+        address: lead.address,
+      }));
+    if (!customerId) return { ok: false, reason: "error" };
+
+    const jobId = await createJob({
+      customerId,
+      title: lead.service || "Service call",
+      leadId,
+      scheduledDate: lead.preferredDate,
+      scheduledTime: lead.preferredTime,
+      address: lead.address,
+      notes: lead.message,
+    });
+    if (!jobId) return { ok: false, reason: "error" };
+    await setLeadStatus(leadId, "won");
+    return { ok: true, jobId, date: null, onCalendar: false };
+  } catch (err) {
+    console.error("[db] createJobFromLead failed:", err);
     return { ok: false, reason: "error" };
   }
 }

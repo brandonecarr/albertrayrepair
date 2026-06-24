@@ -422,6 +422,45 @@
   line-height: 1.6;
 }
 
+/* convert lead → job */
+.adminConvert {
+  margin-bottom: 22px;
+}
+.adminConvertBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  width: 100%;
+  font-family: var(--font-condensed);
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #fff;
+  background: var(--orange);
+  border: none;
+  border-radius: 9px;
+  padding: 14px 18px;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.12s ease;
+}
+.adminConvertBtn:hover:not(:disabled) {
+  background: var(--orange-bright);
+  transform: translateY(-1px);
+}
+.adminConvertBtn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.adminConvertDone {
+  font-family: var(--font-condensed);
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  color: #67d391;
+}
+
 /* status workflow */
 .adminWorkflow {
   margin-top: 26px;

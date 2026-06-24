@@ -6,7 +6,7 @@
  * are no blocks or existing bookings, and writes no-op. The public booking
  * form therefore works identically with or without a database.
  */
-import { and, asc, eq, gte, inArray, lte } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, lte } from "drizzle-orm";
 import { db, isDbConfigured } from "./db";
 import {
   availability,
@@ -245,6 +245,64 @@ export async function listBookingsBetween(
   } catch (err) {
     console.error("[scheduling] failed to list bookings:", err);
     return [];
+  }
+}
+
+/** The most recent booking tied to a lead, or null. */
+export async function findBookingByLead(
+  leadId: string
+): Promise<{ id: string; date: string; time: string; status: BookingStatus } | null> {
+  if (!isDbConfigured || !db) return null;
+  try {
+    const rows = await db
+      .select({
+        id: bookings.id,
+        date: bookings.date,
+        time: bookings.time,
+        status: bookings.status,
+      })
+      .from(bookings)
+      .where(eq(bookings.leadId, leadId))
+      .orderBy(desc(bookings.createdAt))
+      .limit(1);
+    return rows[0] ?? null;
+  } catch (err) {
+    console.error("[scheduling] failed to find booking by lead:", err);
+    return null;
+  }
+}
+
+/**
+ * The active (requested/confirmed) booking occupying a slot, or null. The
+ * partial unique index guarantees at most one — used to find the booking a
+ * public submission created when it isn't directly linked to the lead.
+ */
+export async function findActiveBookingAt(
+  date: string,
+  time: string
+): Promise<{ id: string; date: string; time: string; status: BookingStatus } | null> {
+  if (!isDbConfigured || !db) return null;
+  try {
+    const rows = await db
+      .select({
+        id: bookings.id,
+        date: bookings.date,
+        time: bookings.time,
+        status: bookings.status,
+      })
+      .from(bookings)
+      .where(
+        and(
+          eq(bookings.date, date),
+          eq(bookings.time, time),
+          inArray(bookings.status, ACTIVE_STATUSES)
+        )
+      )
+      .limit(1);
+    return rows[0] ?? null;
+  } catch (err) {
+    console.error("[scheduling] failed to find active booking:", err);
+    return null;
   }
 }
 

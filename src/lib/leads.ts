@@ -125,6 +125,18 @@ export async function listLeads(): Promise<AdminLead[]> {
   }
 }
 
+/** A single lead by id, or null. */
+export async function getLeadById(id: string): Promise<AdminLead | null> {
+  if (!isDbConfigured || !db) return null;
+  try {
+    const rows = await db.select().from(leads).where(eq(leads.id, id)).limit(1);
+    return rows[0] ? toAdminLead(rows[0]) : null;
+  } catch (err) {
+    console.error("[db] failed to get lead:", err);
+    return null;
+  }
+}
+
 /** Leads tied to one customer, newest first. */
 export async function listLeadsForCustomer(
   customerId: string
