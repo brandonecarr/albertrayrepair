@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { bookingSchema } from "@/lib/validation";
-import { notifyNewBooking } from "@/lib/notify";
+import { notifyNewBooking, sendBookingConfirmation } from "@/lib/notify";
 import { saveBookingLead } from "@/lib/leads";
 import { createBookingRequest } from "@/lib/scheduling";
 import { rateLimit, clientIp } from "@/lib/rate-limit";
@@ -64,9 +64,9 @@ export async function POST(req: Request) {
     );
   }
 
-  // Persist to the lead inbox (audit) and notify Albert. These run for both
-  // DB-backed and DB-less deployments.
+  // Persist to the lead inbox (audit), notify Albert, and send the customer
+  // their confirmation. These run for both DB-backed and DB-less deployments.
   await saveBookingLead(data);
-  await notifyNewBooking(data);
+  await Promise.all([notifyNewBooking(data), sendBookingConfirmation(data)]);
   return NextResponse.json({ ok: true });
 }

@@ -19,10 +19,10 @@ export default function About() {
         <Reveal className={styles.visual}>
           <div className={styles.card}>
             <Image
-              src="/brand/badge.svg"
+              src="/brand/emblem.png"
               alt={site.name}
-              width={180}
-              height={165}
+              width={400}
+              height={400}
               className={styles.badge}
             />
             <p className={styles.cardName}>{site.name}</p>

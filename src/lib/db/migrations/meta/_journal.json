@@ -29,6 +29,13 @@
       "when": 1781322482638,
       "tag": "0003_careless_silverclaw",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1782317457261,
+      "tag": "0004_fair_spencer_smythe",
+      "breakpoints": true
     }
   ]
 }

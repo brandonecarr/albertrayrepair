@@ -10,10 +10,14 @@
  */
 
 import type { BookingInput, ContactInput } from "./validation";
+import { site } from "./site-config";
+import { getNotification, renderTemplate } from "./notifications";
 
 const env = process.env;
 
 const hasResend = Boolean(env.RESEND_API_KEY && env.NOTIFY_EMAIL);
+// Sending TO a customer only needs the API key (not Albert's NOTIFY_EMAIL).
+const hasResendKey = Boolean(env.RESEND_API_KEY);
 const hasTwilio = Boolean(
   env.TWILIO_ACCOUNT_SID &&
     env.TWILIO_AUTH_TOKEN &&
@@ -57,6 +61,49 @@ async function sendSms(body: string) {
   } catch (err) {
     console.error("[notify] Twilio SMS failed:", err);
   }
+}
+
+/** Send an email to an arbitrary recipient (e.g. the customer). */
+async function sendEmailTo(to: string, subject: string, body: string) {
+  if (!hasResendKey) {
+    console.info(`[notify] EMAIL→${to} (not configured) — ${subject}\n${body}`);
+    return;
+  }
+  try {
+    const { Resend } = await import("resend");
+    const resend = new Resend(env.RESEND_API_KEY);
+    await resend.emails.send({
+      from: env.RESEND_FROM || "Albert Ray's Repairs & Restoration <onboarding@resend.dev>",
+      to,
+      subject,
+      text: body,
+      replyTo: env.NOTIFY_REPLY_TO || env.NOTIFY_EMAIL || undefined,
+    });
+  } catch (err) {
+    console.error("[notify] Resend customer email failed:", err);
+  }
+}
+
+/**
+ * Confirmation email to the customer after they request a booking. Uses the
+ * admin-managed "booking_confirmation" template; no-ops if it's disabled or
+ * the customer didn't give an email.
+ */
+export async function sendBookingConfirmation(b: BookingInput) {
+  if (!b.email) return;
+  const n = await getNotification("booking_confirmation");
+  if (!n || !n.enabled) return;
+  const vars: Record<string, string> = {
+    name: b.name.split(" ")[0] || b.name,
+    service: b.service || "your project",
+    date: b.dateLabel || b.date,
+    time: b.time || "",
+    address: b.address,
+    phone: site.phoneDisplay,
+  };
+  const subject = renderTemplate(n.subject || "Your appointment request", vars);
+  const body = renderTemplate(n.body, vars);
+  await sendEmailTo(b.email, subject, body);
 }
 
 export async function notifyNewBooking(b: BookingInput) {

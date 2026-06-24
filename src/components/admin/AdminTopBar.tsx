@@ -12,6 +12,7 @@ const NAV = [
   { href: "/admin/customers", label: "Customers" },
   { href: "/admin/jobs", label: "Jobs" },
   { href: "/admin/availability", label: "Availability" },
+  { href: "/admin/notifications", label: "Notifications" },
 ];
 
 function currentLabel(path: string): string {

@@ -351,3 +351,21 @@ export type Payment = typeof payments.$inferSelect;
 export type NewPayment = typeof payments.$inferInsert;
 export type PaymentMethod = (typeof paymentMethod.enumValues)[number];
 export type PaymentStatus = (typeof paymentStatus.enumValues)[number];
+
+/**
+ * Notification overrides — admin-editable enable flag + message template for
+ * each outgoing notification. The full catalog (keys, channel, labels,
+ * default copy) lives in code (lib/notifications.ts); this table only stores
+ * what Albert customizes, keyed by the notification's `key`. Absent rows fall
+ * back to the code defaults, so notifications work before the table is touched.
+ */
+export const notifications = pgTable("notifications", {
+  key: text("key").primaryKey(),
+  enabled: boolean("enabled").notNull().default(true),
+  subject: text("subject"), // email subject; null for SMS-only notifications
+  body: text("body").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type NotificationRow = typeof notifications.$inferSelect;
+export type NewNotificationRow = typeof notifications.$inferInsert;

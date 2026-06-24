@@ -2427,6 +2427,137 @@
 }
 
 /* ---------- Responsive ---------- */
+/* =================================================================
+   Notifications manager
+================================================================= */
+.notifList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.notifCard {
+  background: var(--ink-2);
+  border: 1px solid rgba(195, 203, 213, 0.14);
+  border-radius: 14px;
+  padding: 22px 24px;
+}
+.notifHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.notifHeadText {
+  min-width: 0;
+}
+.notifTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.notifTitle {
+  font-family: var(--font-display);
+  font-weight: 800;
+  text-transform: uppercase;
+  font-size: 19px;
+  letter-spacing: -0.01em;
+}
+.notifChannel {
+  font-family: var(--font-condensed);
+  font-weight: 700;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #cfe0ff;
+  background: rgba(90, 140, 220, 0.16);
+  border: 1px solid rgba(120, 160, 220, 0.4);
+  border-radius: 5px;
+  padding: 3px 8px;
+}
+.notifDesc {
+  font-family: var(--font-condensed);
+  font-size: 13.5px;
+  letter-spacing: 0.02em;
+  color: var(--steel);
+  margin-top: 6px;
+}
+.notifToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  font-family: var(--font-condensed);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--steel);
+  cursor: pointer;
+}
+.notifToggle input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--orange);
+  cursor: pointer;
+}
+.notifBody {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(195, 203, 213, 0.1);
+  transition: opacity 0.15s ease;
+}
+.notifDimmed {
+  opacity: 0.5;
+}
+.notifField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.notifTextarea {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13.5px;
+  line-height: 1.6;
+  resize: vertical;
+  min-height: 180px;
+}
+.notifPlaceholders {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.notifPhLabel {
+  font-family: var(--font-condensed);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #8b94a1;
+}
+.notifPhChip {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  color: var(--orange);
+  background: var(--ink);
+  border: 1px solid rgba(242, 106, 31, 0.35);
+  border-radius: 6px;
+  padding: 4px 9px;
+  cursor: pointer;
+  transition: background 0.13s ease;
+}
+.notifPhChip:hover {
+  background: rgba(242, 106, 31, 0.12);
+}
+.notifActions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
 /* The full text wordmark needs room — drop the nav to its own row before
    it can crowd the brand + sign-out on mid-width screens. */
 @media (max-width: 1200px) {

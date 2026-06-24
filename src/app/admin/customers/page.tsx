@@ -15,10 +15,10 @@ export default async function CustomersPage() {
         <div className="adminHead">
           <div>
             <h1 className="adminTitle">
-              Customer <span className="accent">Roster</span>
+              All <span className="accent">Customers</span>
             </h1>
             <p className="adminSub">
-              Everyone who has reached out, deduped by phone and email.
+              All customers who have reached out via website form, phone and email.
             </p>
           </div>
         </div>

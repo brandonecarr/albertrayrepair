@@ -39,6 +39,15 @@ function longDate(d: Date) {
   });
 }
 
+/** Progressive (xxx) xxx-xxxx formatting as the user types. */
+function formatPhone(value: string): string {
+  const digits = value.replace(/\D/g, "").slice(0, 10);
+  if (digits.length === 0) return "";
+  if (digits.length < 4) return `(${digits}`;
+  if (digits.length < 7) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+}
+
 type Status = "idle" | "submitting" | "success" | "error";
 
 export default function Booking() {
@@ -59,6 +68,8 @@ export default function Booking() {
     phone: "",
     email: "",
     address: "",
+    city: "",
+    zip: "",
     notes: "",
     company: "",
   });
@@ -139,10 +150,13 @@ export default function Booking() {
     if (!selectedDate) e.date = "Pick a day";
     if (!selectedTime) e.time = "Pick a time";
     if (!form.name.trim()) e.name = "Your name is required";
-    if (!/^[\d\s()+.-]{7,}$/.test(form.phone)) e.phone = "Enter a valid phone number";
+    if (form.phone.replace(/\D/g, "").length !== 10)
+      e.phone = "Enter a valid 10-digit phone number";
     if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email))
       e.email = "Enter a valid email";
-    if (!form.address.trim()) e.address = "Service address is required";
+    if (!form.address.trim()) e.address = "Street address is required";
+    if (!form.city.trim()) e.city = "City is required";
+    if (!/^\d{5}$/.test(form.zip.trim())) e.zip = "Enter a 5-digit ZIP";
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -155,12 +169,20 @@ export default function Booking() {
     }
     setStatus("submitting");
     setServerError("");
+    // Combine street + city + ZIP into the single address the API stores.
+    const fullAddress = `${form.address.trim()}, ${form.city.trim()} ${form.zip.trim()}`.trim();
     try {
       const res = await fetch("/api/booking", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...form,
+          service: form.service,
+          name: form.name,
+          phone: form.phone,
+          email: form.email,
+          address: fullAddress,
+          notes: form.notes,
+          company: form.company,
           date: selectedDate ? isoDate(selectedDate) : "",
           dateLabel: selectedDate ? longDate(selectedDate) : "",
           time: selectedTime,
@@ -399,9 +421,11 @@ export default function Booking() {
                 <input
                   id="phone"
                   type="tel"
+                  inputMode="tel"
                   className={`input ${errors.phone ? "input--error" : ""}`}
                   value={form.phone}
-                  onChange={(e) => update("phone", e.target.value)}
+                  onChange={(e) => update("phone", formatPhone(e.target.value))}
+                  placeholder="(909) 471-0834"
                   autoComplete="tel"
                 />
                 {errors.phone && <p className="field-error">{errors.phone}</p>}
@@ -425,16 +449,50 @@ export default function Booking() {
               </div>
               <div className="field">
                 <label className="field-label" htmlFor="address">
-                  Service Address
+                  Street Address
                 </label>
                 <input
                   id="address"
                   className={`input ${errors.address ? "input--error" : ""}`}
                   value={form.address}
                   onChange={(e) => update("address", e.target.value)}
-                  autoComplete="street-address"
+                  placeholder="123 Main St"
+                  autoComplete="address-line1"
                 />
                 {errors.address && <p className="field-error">{errors.address}</p>}
+              </div>
+            </div>
+
+            <div className={styles.cityRow}>
+              <div className="field">
+                <label className="field-label" htmlFor="city">
+                  City
+                </label>
+                <input
+                  id="city"
+                  className={`input ${errors.city ? "input--error" : ""}`}
+                  value={form.city}
+                  onChange={(e) => update("city", e.target.value)}
+                  placeholder="Apple Valley"
+                  autoComplete="address-level2"
+                />
+                {errors.city && <p className="field-error">{errors.city}</p>}
+              </div>
+              <div className="field">
+                <label className="field-label" htmlFor="zip">
+                  ZIP Code
+                </label>
+                <input
+                  id="zip"
+                  inputMode="numeric"
+                  maxLength={5}
+                  className={`input ${errors.zip ? "input--error" : ""}`}
+                  value={form.zip}
+                  onChange={(e) => update("zip", e.target.value.replace(/\D/g, "").slice(0, 5))}
+                  placeholder="92308"
+                  autoComplete="postal-code"
+                />
+                {errors.zip && <p className="field-error">{errors.zip}</p>}
               </div>
             </div>
 

@@ -31,8 +31,8 @@ export default function SiteHeader() {
           <Image
             src="/brand/logo.png"
             alt={site.name}
-            width={1200}
-            height={805}
+            width={610}
+            height={409}
             className={styles.logo}
             priority
           />
