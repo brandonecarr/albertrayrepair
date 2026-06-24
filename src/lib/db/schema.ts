@@ -369,3 +369,23 @@ export const notifications = pgTable("notifications", {
 
 export type NotificationRow = typeof notifications.$inferSelect;
 export type NewNotificationRow = typeof notifications.$inferInsert;
+
+/**
+ * Job notes — an append-only, timestamped log of updates on a job (distinct
+ * from the job's single `notes` description field). Cascades with the job.
+ */
+export const jobNotes = pgTable(
+  "job_notes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    jobId: uuid("job_id")
+      .notNull()
+      .references(() => jobs.id, { onDelete: "cascade" }),
+    body: text("body").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("job_notes_job_idx").on(t.jobId)]
+);
+
+export type JobNote = typeof jobNotes.$inferSelect;
+export type NewJobNote = typeof jobNotes.$inferInsert;

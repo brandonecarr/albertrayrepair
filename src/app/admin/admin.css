@@ -422,6 +422,68 @@
   line-height: 1.6;
 }
 
+/* job notes log */
+.jobNoteAdd {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+.jobNoteInput {
+  flex: 1;
+  resize: vertical;
+  min-height: 46px;
+}
+.jobNoteList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.jobNote {
+  background: var(--ink);
+  border: 1px solid rgba(195, 203, 213, 0.12);
+  border-left: 3px solid var(--orange);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.jobNoteBody {
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--bone);
+  white-space: pre-wrap;
+}
+.jobNoteFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+}
+.jobNoteWhen {
+  font-family: var(--font-condensed);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: #6b7480;
+}
+.jobNoteDel {
+  font-family: var(--font-condensed);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--steel);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color 0.13s ease;
+}
+.jobNoteDel:hover {
+  color: #ff8d6e;
+}
+
 /* convert lead → job */
 .adminConvert {
   margin-bottom: 22px;

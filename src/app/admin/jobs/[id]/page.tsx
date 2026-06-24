@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { isDbConfigured } from "@/lib/db";
-import { getJobById } from "@/lib/jobs";
+import { getJobById, listJobNotes } from "@/lib/jobs";
 import AdminTopBar from "@/components/admin/AdminTopBar";
 import JobDetail from "@/components/admin/JobDetail";
 
@@ -32,6 +32,7 @@ export default async function JobPage(ctx: {
 
   const job = await getJobById(id);
   if (!job) notFound();
+  const notes = await listJobNotes(id);
 
   return (
     <>
@@ -40,7 +41,7 @@ export default async function JobPage(ctx: {
         <Link href="/admin/jobs" className="adminBack">
           ← Job board
         </Link>
-        <JobDetail job={job} />
+        <JobDetail job={job} initialNotes={notes} />
       </main>
     </>
   );

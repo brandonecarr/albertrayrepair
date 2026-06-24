@@ -7,7 +7,7 @@
  */
 import { desc, eq, inArray } from "drizzle-orm";
 import { db, isDbConfigured } from "./db";
-import { jobs, customers, bookings, type Job, type JobStatus } from "./db/schema";
+import { jobs, jobNotes, customers, bookings, type Job, type JobStatus } from "./db/schema";
 import { findOrCreateCustomer } from "./customers";
 import { getLeadById, setLeadStatus } from "./leads";
 import {
@@ -272,6 +272,55 @@ export async function createJobFromLead(
   } catch (err) {
     console.error("[db] createJobFromLead failed:", err);
     return { ok: false, reason: "error" };
+  }
+}
+
+// ─── Job notes (timestamped log) ───────────────────────────────────────────
+
+export type AdminJobNote = { id: string; body: string; createdAt: string };
+
+export async function listJobNotes(jobId: string): Promise<AdminJobNote[]> {
+  if (!isDbConfigured || !db) return [];
+  try {
+    const rows = await db
+      .select()
+      .from(jobNotes)
+      .where(eq(jobNotes.jobId, jobId))
+      .orderBy(desc(jobNotes.createdAt));
+    return rows.map((r) => ({
+      id: r.id,
+      body: r.body,
+      createdAt: r.createdAt.toISOString(),
+    }));
+  } catch (err) {
+    console.error("[db] failed to list job notes:", err);
+    return [];
+  }
+}
+
+export async function addJobNote(
+  jobId: string,
+  body: string
+): Promise<AdminJobNote | null> {
+  if (!isDbConfigured || !db) return null;
+  try {
+    const rows = await db.insert(jobNotes).values({ jobId, body }).returning();
+    const r = rows[0];
+    return r ? { id: r.id, body: r.body, createdAt: r.createdAt.toISOString() } : null;
+  } catch (err) {
+    console.error("[db] failed to add job note:", err);
+    return null;
+  }
+}
+
+export async function deleteJobNote(noteId: string): Promise<boolean> {
+  if (!isDbConfigured || !db) return false;
+  try {
+    await db.delete(jobNotes).where(eq(jobNotes.id, noteId));
+    return true;
+  } catch (err) {
+    console.error("[db] failed to delete job note:", err);
+    return false;
   }
 }
 

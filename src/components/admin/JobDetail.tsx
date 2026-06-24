@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { AdminJob } from "@/lib/jobs";
+import type { AdminJob, AdminJobNote } from "@/lib/jobs";
 import type { JobStatus } from "@/lib/db/schema";
 import { startOfWeekIso } from "@/lib/date-utils";
 
@@ -41,10 +41,63 @@ function fmtDate(iso: string): string {
   });
 }
 
-export default function JobDetail({ job: initial }: { job: AdminJob }) {
+function fmtDateTime(iso: string): string {
+  return new Date(iso).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+export default function JobDetail({
+  job: initial,
+  initialNotes,
+}: {
+  job: AdminJob;
+  initialNotes: AdminJobNote[];
+}) {
   const router = useRouter();
   const [job, setJob] = useState<AdminJob>(initial);
   const [editing, setEditing] = useState(false);
+
+  // Notes log
+  const [notes, setNotes] = useState<AdminJobNote[]>(initialNotes);
+  const [draft, setDraft] = useState("");
+  const [addingNote, setAddingNote] = useState(false);
+
+  async function addNote(e: React.FormEvent) {
+    e.preventDefault();
+    if (!draft.trim()) return;
+    setAddingNote(true);
+    try {
+      const res = await fetch(`/api/admin/jobs/${job.id}/notes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ body: draft }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.note) {
+        setNotes((n) => [data.note, ...n]);
+        setDraft("");
+      }
+    } finally {
+      setAddingNote(false);
+    }
+  }
+
+  async function deleteNote(noteId: string) {
+    const prev = notes;
+    setNotes((n) => n.filter((x) => x.id !== noteId));
+    try {
+      const res = await fetch(`/api/admin/jobs/${job.id}/notes/${noteId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error();
+    } catch {
+      setNotes(prev); // rollback
+    }
+  }
   const [form, setForm] = useState({
     title: initial.title,
     amountDollars: initial.amountCents != null ? (initial.amountCents / 100).toString() : "",
@@ -191,7 +244,7 @@ export default function JobDetail({ job: initial }: { job: AdminJob }) {
               <Field label="Address" value={job.address} full />
               {job.notes && (
                 <div className="adminFieldFull">
-                  <p className="adminFieldLabel">Notes</p>
+                  <p className="adminFieldLabel">Details</p>
                   <p className="adminMessage">{job.notes}</p>
                 </div>
               )}
@@ -240,7 +293,7 @@ export default function JobDetail({ job: initial }: { job: AdminJob }) {
                 onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
               />
             </EditRow>
-            <EditRow label="Notes">
+            <EditRow label="Details">
               <textarea
                 className="adminInput"
                 rows={3}
@@ -275,6 +328,53 @@ export default function JobDetail({ job: initial }: { job: AdminJob }) {
               </button>
             </div>
           </div>
+        )}
+      </section>
+
+      <section className="custPanel">
+        <div className="custPanelHead">
+          <h2 className="custPanelTitle">
+            Notes <span className="custPanelCount">{notes.length}</span>
+          </h2>
+        </div>
+
+        <form className="jobNoteAdd" onSubmit={addNote}>
+          <textarea
+            className="adminInput jobNoteInput"
+            rows={2}
+            placeholder="Add a note or update…"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+          />
+          <button
+            className="adminLoginBtn"
+            style={{ marginTop: 0, width: "auto", padding: "12px 24px" }}
+            disabled={addingNote || !draft.trim()}
+          >
+            {addingNote ? "Adding…" : "Add note"}
+          </button>
+        </form>
+
+        {notes.length === 0 ? (
+          <p className="custEmptyLine">No notes yet.</p>
+        ) : (
+          <ul className="jobNoteList">
+            {notes.map((n) => (
+              <li key={n.id} className="jobNote">
+                <p className="jobNoteBody">{n.body}</p>
+                <div className="jobNoteFoot">
+                  <span className="jobNoteWhen">{fmtDateTime(n.createdAt)}</span>
+                  <button
+                    type="button"
+                    className="jobNoteDel"
+                    onClick={() => deleteNote(n.id)}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
         )}
       </section>
     </div>
