@@ -1,8 +1,8 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { site } from "@/lib/site-config";
 import LogoutButton from "./LogoutButton";
 
 const NAV = [
@@ -25,15 +25,8 @@ export default function AdminTopBar() {
   const path = usePathname();
   return (
     <header className="adminBar">
-      <Link href="/admin" className="adminBrand" aria-label="Albert Ray — Dashboard">
-        <Image
-          src="/brand/logo.png"
-          alt="Albert Ray"
-          width={1200}
-          height={805}
-          className="adminBrandLogo"
-          priority
-        />
+      <Link href="/admin" className="adminBrand" aria-label={`${site.name} — Dashboard`}>
+        <span className="adminBrandName">{site.name}</span>
         <span className="adminBrandTag">{currentLabel(path)}</span>
       </Link>
 

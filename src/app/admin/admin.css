@@ -40,12 +40,15 @@
   gap: 12px;
 }
 
-.adminBrandLogo {
-  height: 42px;
-  width: auto;
-  display: block;
-  border-radius: 8px;
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
+.adminBrandName {
+  font-family: var(--font-display);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+  font-size: 16px;
+  line-height: 1.05;
+  color: var(--bone);
+  white-space: nowrap;
 }
 
 .adminBrandTag {
@@ -2424,6 +2427,18 @@
 }
 
 /* ---------- Responsive ---------- */
+/* The full text wordmark needs room — drop the nav to its own row before
+   it can crowd the brand + sign-out on mid-width screens. */
+@media (max-width: 1200px) {
+  .adminNav {
+    order: 3;
+    flex-basis: 100%;
+    justify-content: flex-start;
+    flex: unset;
+    overflow-x: auto;
+  }
+}
+
 @media (max-width: 920px) {
   .adminSplit {
     grid-template-columns: 1fr;
@@ -2439,13 +2454,6 @@
   }
   .calCol {
     min-height: 0;
-  }
-  .adminNav {
-    order: 3;
-    flex-basis: 100%;
-    justify-content: flex-start;
-    flex: unset;
-    overflow-x: auto;
   }
   .jobBoard {
     grid-template-columns: 1fr;
