@@ -389,3 +389,32 @@ export const jobNotes = pgTable(
 
 export type JobNote = typeof jobNotes.$inferSelect;
 export type NewJobNote = typeof jobNotes.$inferInsert;
+
+/**
+ * Job materials — what was used/bought for a job, who paid (company vs client),
+ * and the price. Names double as reusable "tags": typing one suggests prior
+ * materials (and their last price). Used to track per-job material spend.
+ */
+export const materialPurchaser = pgEnum("material_purchaser", ["company", "client"]);
+
+export const jobMaterials = pgTable(
+  "job_materials",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    jobId: uuid("job_id")
+      .notNull()
+      .references(() => jobs.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    priceCents: integer("price_cents").notNull().default(0),
+    purchaser: materialPurchaser("purchaser").notNull().default("company"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("job_materials_job_idx").on(t.jobId),
+    index("job_materials_name_idx").on(t.name),
+  ]
+);
+
+export type JobMaterial = typeof jobMaterials.$inferSelect;
+export type NewJobMaterial = typeof jobMaterials.$inferInsert;
+export type MaterialPurchaser = (typeof materialPurchaser.enumValues)[number];

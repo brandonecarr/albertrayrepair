@@ -4,8 +4,10 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { AdminJob, AdminJobNote } from "@/lib/jobs";
-import type { JobStatus } from "@/lib/db/schema";
+import type { AdminMaterial } from "@/lib/materials";
+import type { JobStatus, MaterialPurchaser } from "@/lib/db/schema";
 import { startOfWeekIso } from "@/lib/date-utils";
+import MaterialAutocomplete from "./MaterialAutocomplete";
 
 const STATUSES: JobStatus[] = [
   "quoted",
@@ -53,9 +55,11 @@ function fmtDateTime(iso: string): string {
 export default function JobDetail({
   job: initial,
   initialNotes,
+  initialMaterials,
 }: {
   job: AdminJob;
   initialNotes: AdminJobNote[];
+  initialMaterials: AdminMaterial[];
 }) {
   const router = useRouter();
   const [job, setJob] = useState<AdminJob>(initial);
@@ -96,6 +100,58 @@ export default function JobDetail({
       if (!res.ok) throw new Error();
     } catch {
       setNotes(prev); // rollback
+    }
+  }
+
+  // Materials
+  const [materials, setMaterials] = useState<AdminMaterial[]>(initialMaterials);
+  const [matName, setMatName] = useState("");
+  const [matPrice, setMatPrice] = useState("");
+  const [matPurchaser, setMatPurchaser] = useState<MaterialPurchaser>("company");
+  const [addingMat, setAddingMat] = useState(false);
+
+  const companyCents = materials
+    .filter((m) => m.purchaser === "company")
+    .reduce((s, m) => s + m.priceCents, 0);
+  const clientCents = materials
+    .filter((m) => m.purchaser === "client")
+    .reduce((s, m) => s + m.priceCents, 0);
+
+  async function addMaterial(e: React.FormEvent) {
+    e.preventDefault();
+    if (!matName.trim()) return;
+    setAddingMat(true);
+    try {
+      const res = await fetch(`/api/admin/jobs/${job.id}/materials`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: matName,
+          priceDollars: matPrice,
+          purchaser: matPurchaser,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.material) {
+        setMaterials((m) => [data.material, ...m]);
+        setMatName("");
+        setMatPrice("");
+      }
+    } finally {
+      setAddingMat(false);
+    }
+  }
+
+  async function deleteMaterial(matId: string) {
+    const prev = materials;
+    setMaterials((m) => m.filter((x) => x.id !== matId));
+    try {
+      const res = await fetch(`/api/admin/jobs/${job.id}/materials/${matId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error();
+    } catch {
+      setMaterials(prev); // rollback
     }
   }
   const [form, setForm] = useState({
@@ -328,6 +384,83 @@ export default function JobDetail({
               </button>
             </div>
           </div>
+        )}
+      </section>
+
+      <section className="custPanel">
+        <div className="custPanelHead">
+          <h2 className="custPanelTitle">
+            Materials <span className="custPanelCount">{materials.length}</span>
+          </h2>
+          {(companyCents > 0 || clientCents > 0) && (
+            <div className="matTotals">
+              <span className="matTotalCo">Company {money(companyCents)}</span>
+              <span className="matTotalCl">Client {money(clientCents)}</span>
+            </div>
+          )}
+        </div>
+
+        <form className="matAdd" onSubmit={addMaterial}>
+          <div className="matNameField">
+            <MaterialAutocomplete
+              value={matName}
+              onChangeName={setMatName}
+              onPick={(s) => {
+                setMatName(s.name);
+                setMatPrice((s.priceCents / 100).toString());
+              }}
+              placeholder="Material — e.g. Drywall screws"
+            />
+          </div>
+          <span className="matPriceWrap">
+            <span className="matPricePrefix">$</span>
+            <input
+              className="adminInput matPriceInput"
+              inputMode="decimal"
+              placeholder="0.00"
+              value={matPrice}
+              onChange={(e) => setMatPrice(e.target.value)}
+            />
+          </span>
+          <select
+            className="matPurchaser"
+            value={matPurchaser}
+            onChange={(e) => setMatPurchaser(e.target.value as MaterialPurchaser)}
+            aria-label="Who purchased"
+          >
+            <option value="company">Company purchased</option>
+            <option value="client">Client purchased</option>
+          </select>
+          <button
+            className="adminLoginBtn"
+            style={{ marginTop: 0, width: "auto", padding: "12px 22px" }}
+            disabled={addingMat || !matName.trim()}
+          >
+            {addingMat ? "Adding…" : "Add"}
+          </button>
+        </form>
+
+        {materials.length === 0 ? (
+          <p className="custEmptyLine">No materials logged yet.</p>
+        ) : (
+          <ul className="matList">
+            {materials.map((m) => (
+              <li key={m.id} className="matItem">
+                <span className="matName">{m.name}</span>
+                <span className="matItemPrice">{money(m.priceCents)}</span>
+                <span className={`matTag mat-${m.purchaser}`}>
+                  {m.purchaser === "company" ? "Company" : "Client"}
+                </span>
+                <button
+                  type="button"
+                  className="jobNoteDel"
+                  onClick={() => deleteMaterial(m.id)}
+                >
+                  Remove
+                </button>
+              </li>
+            ))}
+          </ul>
         )}
       </section>
 

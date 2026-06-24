@@ -422,6 +422,124 @@
   line-height: 1.6;
 }
 
+/* job materials */
+.matTotals {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-family: var(--font-condensed);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.matTotalCo {
+  color: #ffb454;
+}
+.matTotalCl {
+  color: #6fb6ff;
+}
+.matAdd {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.matNameField {
+  flex: 1;
+  min-width: 200px;
+}
+.matPriceWrap {
+  display: inline-flex;
+  align-items: center;
+  background: var(--ink);
+  border: 2px solid rgba(195, 203, 213, 0.2);
+  border-radius: 8px;
+  padding-left: 11px;
+}
+.matPriceWrap:focus-within {
+  border-color: var(--orange);
+}
+.matPricePrefix {
+  color: #6b7480;
+  font-size: 15px;
+}
+.matPriceInput {
+  width: 92px;
+  border: none !important;
+  background: transparent !important;
+  padding-left: 4px;
+}
+.matPriceInput:focus {
+  box-shadow: none !important;
+}
+.matPurchaser {
+  font-family: var(--font-condensed);
+  font-weight: 700;
+  font-size: 12.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--bone);
+  background: var(--ink);
+  border: 2px solid rgba(195, 203, 213, 0.2);
+  border-radius: 8px;
+  padding: 12px 12px;
+  cursor: pointer;
+}
+.matPurchaser:focus {
+  outline: none;
+  border-color: var(--orange);
+}
+.matList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.matItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--ink);
+  border: 1px solid rgba(195, 203, 213, 0.12);
+  border-radius: 10px;
+  padding: 11px 13px;
+}
+.matName {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 14px;
+  letter-spacing: -0.01em;
+}
+.matItemPrice {
+  font-family: var(--font-condensed);
+  font-weight: 700;
+  font-size: 14px;
+  color: #67d391;
+}
+.matTag {
+  font-family: var(--font-condensed);
+  font-weight: 700;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 5px;
+  border: 1px solid currentColor;
+}
+.mat-company {
+  color: #ffb454;
+}
+.mat-client {
+  color: #6fb6ff;
+}
+
 /* job notes log */
 .jobNoteAdd {
   display: flex;

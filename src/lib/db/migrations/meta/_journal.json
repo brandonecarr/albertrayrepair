@@ -43,6 +43,13 @@
       "when": 1782341777856,
       "tag": "0005_loud_rockslide",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1782342444404,
+      "tag": "0006_hot_groot",
+      "breakpoints": true
     }
   ]
 }
