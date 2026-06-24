@@ -97,7 +97,7 @@ export const CheckIcon = (p: SVGProps<SVGSVGElement>) => (
 export const IchthysIcon = (p: SVGProps<SVGSVGElement>) => (
   <svg {...base} {...p}>
     <path d="M21 12c-4.2-5-12.8-5-17 0 4.2 5 12.8 5 17 0Z" />
-    <path d="M17.5 8 22 12l-4.5 4" />
+    <path d="M24 8 21 12l3 4" />
   </svg>
 );
 
