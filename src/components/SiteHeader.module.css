@@ -2,13 +2,15 @@
   position: sticky;
   top: 0;
   z-index: 60;
-  background: var(--bone);
+  /* Matches the logo's warm-cream background so the wordmark blends
+     seamlessly with the bar (the logo PNG ships a baked-in backdrop). */
+  background: #fdeee6;
   transition: background 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
   border-bottom: 1px solid var(--hair);
 }
 
 .scrolled {
-  background: rgba(244, 239, 228, 0.94);
+  background: rgba(253, 238, 230, 0.94);
   backdrop-filter: blur(8px);
   border-bottom-color: var(--hair);
   box-shadow: 0 12px 30px -22px rgba(23, 25, 31, 0.6);
