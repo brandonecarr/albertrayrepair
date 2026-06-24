@@ -5,7 +5,7 @@
  * `cancelled` as a terminal off-ramp. All functions no-op gracefully when the
  * DB is not configured.
  */
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, inArray } from "drizzle-orm";
 import { db, isDbConfigured } from "./db";
 import { jobs, customers, bookings, type Job, type JobStatus } from "./db/schema";
 import { findOrCreateCustomer } from "./customers";
@@ -272,6 +272,45 @@ export async function createJobFromLead(
   } catch (err) {
     console.error("[db] createJobFromLead failed:", err);
     return { ok: false, reason: "error" };
+  }
+}
+
+/** A single job (with its customer name) by id, or null. */
+export async function getJobById(id: string): Promise<AdminJob | null> {
+  if (!isDbConfigured || !db) return null;
+  try {
+    const rows = await db
+      .select({ job: jobs, customerName: customers.name })
+      .from(jobs)
+      .leftJoin(customers, eq(jobs.customerId, customers.id))
+      .where(eq(jobs.id, id))
+      .limit(1);
+    return rows[0] ? toAdminJob(rows[0].job, rows[0].customerName) : null;
+  } catch (err) {
+    console.error("[db] failed to get job:", err);
+    return null;
+  }
+}
+
+/**
+ * Map of bookingId → jobId for any bookings that already have a job. Lets the
+ * calendar show "View job" (linking to the job page) instead of "+ Job".
+ */
+export async function getJobLinksForBookings(
+  bookingIds: string[]
+): Promise<Record<string, string>> {
+  if (!isDbConfigured || !db || bookingIds.length === 0) return {};
+  try {
+    const rows = await db
+      .select({ bookingId: jobs.bookingId, jobId: jobs.id })
+      .from(jobs)
+      .where(inArray(jobs.bookingId, bookingIds));
+    const map: Record<string, string> = {};
+    for (const r of rows) if (r.bookingId) map[r.bookingId] = r.jobId;
+    return map;
+  } catch (err) {
+    console.error("[db] failed to load job links:", err);
+    return {};
   }
 }
 

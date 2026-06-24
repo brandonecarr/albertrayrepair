@@ -139,7 +139,9 @@ function JobCard({
 }) {
   return (
     <div className={`jobCard jc-${job.status}`}>
-      <p className="jobCardTitle">{job.title}</p>
+      <Link href={`/admin/jobs/${job.id}`} className="jobCardTitle">
+        {job.title}
+      </Link>
       {job.customerName && (
         <Link href={`/admin/customers/${job.customerId}`} className="jobCardCust">
           {job.customerName}

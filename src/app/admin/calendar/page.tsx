@@ -1,5 +1,6 @@
 import { isDbConfigured } from "@/lib/db";
 import { listBookingsBetween, listBlocksBetween } from "@/lib/scheduling";
+import { getJobLinksForBookings } from "@/lib/jobs";
 import {
   startOfWeekIso,
   weekDates,
@@ -94,6 +95,7 @@ export default async function CalendarPage({
     listBookingsBetween(weekStart, weekEnd),
     listBlocksBetween(weekStart, weekEnd),
   ]);
+  const jobLinks = await getJobLinksForBookings(bookings.map((b) => b.id));
 
   return (
     <>
@@ -120,6 +122,7 @@ export default async function CalendarPage({
             nextWeek={addDays(weekStart, 7)}
             weekScopeHref={weekScopeHref}
             monthScopeHref={monthScopeHref}
+            jobLinks={jobLinks}
           />
         )}
       </main>

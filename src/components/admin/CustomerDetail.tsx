@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { AdminCustomer } from "@/lib/customers";
 import type { AdminJob } from "@/lib/jobs";
@@ -362,7 +363,9 @@ export default function CustomerDetail({
             {jobs.map((j) => (
               <div key={j.id} className="jobRow">
                 <div className="jobRowMain">
-                  <span className="jobRowTitle">{j.title}</span>
+                  <Link href={`/admin/jobs/${j.id}`} className="jobRowTitle">
+                    {j.title}
+                  </Link>
                   <span className="jobRowMeta">
                     {money(j.amountCents)}
                     {j.scheduledDate && ` · ${j.scheduledDate}`}

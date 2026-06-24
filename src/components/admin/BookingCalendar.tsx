@@ -37,6 +37,8 @@ type Props = {
   nextWeek: string;
   weekScopeHref: string;
   monthScopeHref: string;
+  /** bookingId → jobId for bookings that already have a job. */
+  jobLinks: Record<string, string>;
 };
 
 export default function BookingCalendar({
@@ -48,10 +50,15 @@ export default function BookingCalendar({
   nextWeek,
   weekScopeHref,
   monthScopeHref,
+  jobLinks,
 }: Props) {
   const router = useRouter();
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [jobState, setJobState] = useState<Record<string, "busy" | "done">>({});
+  const [jobBusy, setJobBusy] = useState<string | null>(null);
+  // Jobs created this session (bookingId → customerId), merged over the
+  // server-provided links so the "View job" state survives a refresh too.
+  const [newJobLinks, setNewJobLinks] = useState<Record<string, string>>({});
+  const jobLinkFor = (id: string): string | undefined => newJobLinks[id] ?? jobLinks[id];
   const [showBlock, setShowBlock] = useState(false);
   const [blockDate, setBlockDate] = useState(days[0] ?? todayIso);
   const [blockTime, setBlockTime] = useState("");
@@ -120,18 +127,19 @@ export default function BookingCalendar({
   }
 
   async function makeJob(id: string) {
-    setJobState((s) => ({ ...s, [id]: "busy" }));
+    setJobBusy(id);
     try {
       const res = await fetch(`/api/admin/bookings/${id}/job`, { method: "POST" });
       if (!res.ok) throw new Error();
-      setJobState((s) => ({ ...s, [id]: "done" }));
+      const data = await res.json().catch(() => ({}));
+      if (data.id) {
+        setNewJobLinks((prev) => ({ ...prev, [id]: data.id }));
+      }
       router.refresh();
     } catch {
-      setJobState((s) => {
-        const next = { ...s };
-        delete next[id];
-        return next;
-      });
+      // leave the "+ Job" button in place to retry
+    } finally {
+      setJobBusy(null);
     }
   }
 
@@ -303,15 +311,20 @@ export default function BookingCalendar({
                       )}
                       {b.status === "confirmed" && (
                         <>
-                          {jobState[b.id] === "done" ? (
-                            <span className="calJobDone">✓ Job created</span>
+                          {jobLinkFor(b.id) ? (
+                            <Link
+                              className="calAct calActView"
+                              href={`/admin/jobs/${jobLinkFor(b.id)}`}
+                            >
+                              View job →
+                            </Link>
                           ) : (
                             <button
                               className="calAct calActJob"
                               onClick={() => makeJob(b.id)}
-                              disabled={jobState[b.id] === "busy"}
+                              disabled={jobBusy === b.id}
                             >
-                              {jobState[b.id] === "busy" ? "Adding…" : "+ Job"}
+                              {jobBusy === b.id ? "Adding…" : "+ Job"}
                             </button>
                           )}
                           <button

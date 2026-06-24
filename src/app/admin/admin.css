@@ -1352,11 +1352,17 @@
   min-width: 0;
 }
 .jobRowTitle {
+  align-self: flex-start;
   font-family: var(--font-display);
   font-weight: 700;
   text-transform: uppercase;
   font-size: 15px;
   letter-spacing: -0.01em;
+  color: var(--bone);
+  transition: color 0.14s ease;
+}
+.jobRowTitle:hover {
+  color: var(--orange);
 }
 .jobRowMeta {
   font-family: var(--font-condensed);
@@ -1528,12 +1534,18 @@
 .jc-invoiced { border-left-color: #8b9cff; }
 .jc-cancelled { border-left-color: #98a2b0; opacity: 0.6; }
 .jobCardTitle {
+  display: block;
   font-family: var(--font-display);
   font-weight: 700;
   text-transform: uppercase;
   font-size: 14px;
   letter-spacing: -0.01em;
   line-height: 1.15;
+  color: var(--bone);
+  transition: color 0.14s ease;
+}
+.jobCardTitle:hover {
+  color: var(--orange);
 }
 .jobCardCust {
   font-family: var(--font-condensed);
@@ -1767,16 +1779,15 @@
   border-color: #8fb4ff;
   background: rgba(90, 140, 220, 0.12);
 }
-.calJobDone {
-  display: inline-flex;
-  align-items: center;
-  font-family: var(--font-condensed);
-  font-weight: 700;
-  font-size: 11px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+.calActView {
+  background: rgba(103, 211, 145, 0.14);
   color: #67d391;
-  padding: 6px 4px;
+  border-color: rgba(103, 211, 145, 0.4);
+}
+.calActView:hover {
+  color: #b7f2cf;
+  border-color: #67d391;
+  background: rgba(103, 211, 145, 0.22);
 }
 
 /* =================================================================
