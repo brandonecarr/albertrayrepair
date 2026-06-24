@@ -1,0 +1,44 @@
+.wrap {
+  position: relative;
+}
+
+.list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 50;
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  background: #fff;
+  border: 1px solid var(--bone-3);
+  border-radius: 10px;
+  box-shadow: 0 16px 40px -16px rgba(23, 25, 31, 0.45);
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.item {
+  padding: 10px 12px;
+  border-radius: 7px;
+  font-size: 14.5px;
+  line-height: 1.35;
+  color: var(--ink);
+  cursor: pointer;
+}
+.item:hover,
+.itemActive {
+  background: var(--bone-2);
+}
+
+.attr {
+  padding: 7px 12px 4px;
+  margin-top: 4px;
+  border-top: 1px solid var(--bone-3);
+  font-family: var(--font-condensed);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #9aa0a8;
+}
