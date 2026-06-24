@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { AdminBooking, AdminBlock } from "@/lib/scheduling";
@@ -8,6 +8,7 @@ import type { BookingStatus } from "@/lib/db/schema";
 import { fmtWeekday, fmtMonthDay, isToday } from "@/lib/date-utils";
 import { ArrowIcon, CheckIcon } from "@/components/Icons";
 import CalScopeMenu from "./CalScopeMenu";
+import RouteManager, { type RouteStop } from "./RouteManager";
 
 const STATUS_LABEL: Record<BookingStatus, string> = {
   requested: "Requested",
@@ -15,6 +16,17 @@ const STATUS_LABEL: Record<BookingStatus, string> = {
   declined: "Declined",
   cancelled: "Cancelled",
 };
+
+/** "9:00 AM" → minutes since midnight, for chronological sorting. */
+function timeToMinutes(t: string): number {
+  const m = t.match(/(\d+):(\d+)\s*(AM|PM)/i);
+  if (!m) return 0;
+  let h = parseInt(m[1], 10);
+  const min = parseInt(m[2], 10);
+  if (/pm/i.test(m[3]) && h !== 12) h += 12;
+  if (/am/i.test(m[3]) && h === 12) h = 0;
+  return h * 60 + min;
+}
 
 type Props = {
   days: string[];
@@ -45,6 +57,40 @@ export default function BookingCalendar({
   const [blockTime, setBlockTime] = useState("");
   const [blockReason, setBlockReason] = useState("");
   const [blockBusy, setBlockBusy] = useState(false);
+
+  // Day selected for route planning (defaults to today when in view).
+  const [selectedDay, setSelectedDay] = useState<string | null>(() => {
+    if (days.includes(todayIso)) return todayIso;
+    return (
+      days.find((d) =>
+        bookings.some(
+          (b) =>
+            b.date === d &&
+            (b.status === "requested" || b.status === "confirmed") &&
+            b.address?.trim()
+        )
+      ) ?? null
+    );
+  });
+
+  const dayStops: RouteStop[] = useMemo(() => {
+    if (!selectedDay) return [];
+    return bookings
+      .filter(
+        (b) =>
+          b.date === selectedDay &&
+          (b.status === "requested" || b.status === "confirmed") &&
+          Boolean(b.address?.trim())
+      )
+      .sort((a, b) => timeToMinutes(a.time) - timeToMinutes(b.time))
+      .map((b) => ({
+        id: b.id,
+        name: b.name,
+        time: b.time,
+        address: b.address as string,
+        service: b.service,
+      }));
+  }, [selectedDay, bookings]);
 
   const bookingsByDay = new Map<string, AdminBooking[]>();
   for (const b of bookings) {
@@ -189,11 +235,21 @@ export default function BookingCalendar({
           const dayBlocks = blocksByDay.get(day) ?? [];
           const today = isToday(day);
           return (
-            <div key={day} className={`calCol ${today ? "calColToday" : ""}`}>
-              <div className="calColHead">
+            <div
+              key={day}
+              className={`calCol ${today ? "calColToday" : ""} ${
+                day === selectedDay ? "calColSel" : ""
+              }`}
+            >
+              <button
+                type="button"
+                className={`calColHead ${day === selectedDay ? "calColHeadSel" : ""}`}
+                onClick={() => setSelectedDay(day)}
+                title="Plan this day's route"
+              >
                 <span className="calColDow">{fmtWeekday(day)}</span>
                 <span className="calColDate">{fmtMonthDay(day)}</span>
-              </div>
+              </button>
 
               <div className="calColBody">
                 {dayBlocks.map((bl) => (
@@ -292,10 +348,18 @@ export default function BookingCalendar({
         })}
       </div>
 
-      <p className="adminSub" style={{ marginTop: 16 }}>
-        Tip: confirming a booking keeps its slot reserved; declining or cancelling
-        frees it for someone else.
+      <p className="adminSub" style={{ marginTop: 14 }}>
+        Tip: click a day&rsquo;s header to plan its route below. Confirming a
+        booking keeps its slot reserved; declining frees it.
       </p>
+
+      {selectedDay && (
+        <RouteManager
+          key={selectedDay}
+          dayLabel={`${fmtWeekday(selectedDay, "long")}, ${fmtMonthDay(selectedDay)}`}
+          stops={dayStops}
+        />
+      )}
     </>
   );
 }
