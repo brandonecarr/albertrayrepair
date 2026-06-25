@@ -2109,6 +2109,65 @@
   cursor: pointer;
 }
 
+/* "Load more" pagination control shared by inbox / job board / roster */
+.loadMoreBtn {
+  display: block;
+  width: 100%;
+  margin-top: 14px;
+  padding: 11px 16px;
+  font-family: var(--font-condensed);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--steel);
+  background: var(--ink-2);
+  border: 1px solid rgba(195, 203, 213, 0.2);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.loadMoreBtn:hover:not(:disabled) {
+  background: rgba(242, 106, 31, 0.14);
+  color: var(--bone);
+}
+.loadMoreBtn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* On-demand customer search popover for lead reassignment */
+.reassignPop {
+  position: relative;
+  min-width: 220px;
+}
+.reassignResults {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--ink-2);
+  border: 1px solid rgba(195, 203, 213, 0.2);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+}
+.reassignResult {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font-size: 12px;
+  color: var(--bone);
+  background: transparent;
+  border: none;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+.reassignResult:hover {
+  background: rgba(242, 106, 31, 0.14);
+}
+
 /* ---------- Quotes ---------- */
 .quoteList {
   display: flex;
@@ -3014,6 +3073,187 @@
 }
 .leaflet-container { font-family: var(--font-body); }
 
+/* =================================================================
+   Reports & KPIs
+================================================================= */
+.reportRange {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.reportRangeBtn {
+  font-family: var(--font-condensed);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--steel);
+  background: var(--ink-2);
+  border: 1px solid rgba(195, 203, 213, 0.16);
+  border-radius: 999px;
+  padding: 8px 14px;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+.reportRangeBtn:hover { color: var(--bone); }
+.reportRangeActive {
+  color: #fff;
+  background: var(--orange);
+  border-color: var(--orange);
+}
+
+/* P&L */
+.reportPnl {
+  display: flex;
+  align-items: stretch;
+  gap: 16px;
+  background: var(--ink-2);
+  border: 1px solid rgba(195, 203, 213, 0.14);
+  border-radius: 14px;
+  padding: 22px 24px;
+  margin-bottom: 16px;
+}
+.pnlItem {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+}
+.pnlItemTotal {
+  padding-left: 18px;
+  border-left: 2px solid rgba(195, 203, 213, 0.14);
+}
+.pnlLabel {
+  font-family: var(--font-condensed);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #8b94a1;
+}
+.pnlValue {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(24px, 3vw, 34px);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--bone);
+}
+.pnlPos { color: #67d391; }
+.pnlNeg { color: #ff9a52; }
+.pnlNote {
+  font-family: var(--font-condensed);
+  font-size: 12px;
+  color: var(--steel);
+}
+.pnlOp {
+  display: flex;
+  align-items: center;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 24px;
+  color: #5e6672;
+}
+
+.reportKpis {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.reportCols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+/* horizontal bar lists (revenue by month, top customers) */
+.revBars {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.revBarRow {
+  display: grid;
+  grid-template-columns: 80px 1fr auto;
+  align-items: center;
+  gap: 12px;
+}
+.revBarLink {
+  border-radius: 8px;
+  padding: 3px 5px;
+  transition: background 0.12s ease;
+}
+.revBarLink:hover { background: var(--ink); }
+.revBarMonth {
+  font-family: var(--font-condensed);
+  font-weight: 700;
+  font-size: 12.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--steel);
+}
+.revBarName {
+  text-transform: none;
+  color: var(--bone);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.revBarTrack {
+  height: 12px;
+  background: var(--ink);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.revBarFill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--orange), var(--orange-bright));
+}
+.revBarFillBlue {
+  background: linear-gradient(90deg, #5a8cdc, #8fb4ff);
+}
+.revBarVal {
+  font-family: var(--font-condensed);
+  font-weight: 700;
+  font-size: 13.5px;
+  color: var(--bone);
+  white-space: nowrap;
+}
+
+/* lead funnel */
+.funnelRow {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+.funnelItem {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  background: var(--ink);
+  border: 1px solid rgba(195, 203, 213, 0.12);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.funnelNum {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 28px;
+  line-height: 1;
+  color: var(--bone);
+}
+.funnelWin { color: #67d391; }
+.funnelLose { color: #ff8d6e; }
+.funnelLabel {
+  font-family: var(--font-condensed);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--steel);
+}
+
 /* The full text wordmark needs room — drop the nav to its own row before
    it can crowd the brand + sign-out on mid-width screens. */
 @media (max-width: 1200px) {
@@ -3056,6 +3296,28 @@
   }
   .routeBody {
     grid-template-columns: 1fr;
+  }
+  .reportCols {
+    grid-template-columns: 1fr;
+  }
+  .reportKpis {
+    grid-template-columns: 1fr 1fr;
+  }
+  .funnelRow {
+    grid-template-columns: 1fr 1fr;
+  }
+  .reportPnl {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .pnlOp {
+    display: none;
+  }
+  .pnlItemTotal {
+    padding-left: 0;
+    padding-top: 14px;
+    border-left: none;
+    border-top: 2px solid rgba(195, 203, 213, 0.14);
   }
   .qLine {
     flex-wrap: wrap;

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { recordManualPayment } from "@/lib/payments";
+import { dollarsToCentsStrict } from "@/lib/money";
 import type { PaymentMethod } from "@/lib/db/schema";
 
 export const runtime = "nodejs";
@@ -22,9 +23,9 @@ export async function POST(req: Request) {
   if (typeof body.customerId !== "string" || !body.customerId) {
     return NextResponse.json({ error: "customerId is required." }, { status: 400 });
   }
-  const amount = Number(body.amountDollars);
-  if (!Number.isFinite(amount) || amount <= 0) {
-    return NextResponse.json({ error: "Enter a payment amount." }, { status: 400 });
+  const amountCents = dollarsToCentsStrict(body.amountDollars);
+  if (Number.isNaN(amountCents) || amountCents <= 0) {
+    return NextResponse.json({ error: "Enter a valid payment amount." }, { status: 400 });
   }
   if (
     typeof body.method !== "string" ||
@@ -37,7 +38,7 @@ export async function POST(req: Request) {
     customerId: body.customerId,
     quoteId:
       typeof body.quoteId === "string" && body.quoteId ? body.quoteId : null,
-    amountCents: Math.round(amount * 100),
+    amountCents,
     method: body.method as "cash" | "check" | "other",
     reference:
       typeof body.reference === "string" && body.reference.trim()

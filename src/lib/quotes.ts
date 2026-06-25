@@ -186,6 +186,17 @@ export async function updateQuote(
         ]);
       }
     } else {
+      // Tax changed without touching line items — the denormalized totalCents
+      // must still be recomputed (subtotal of existing lines + new tax), or it
+      // goes stale and feeds a wrong amount into Stripe / the accepted job.
+      if (tax !== undefined) {
+        const lines = await db
+          .select({ lineTotal: quoteLineItems.lineTotalCents })
+          .from(quoteLineItems)
+          .where(eq(quoteLineItems.quoteId, id));
+        const subtotal = lines.reduce((s, r) => s + r.lineTotal, 0);
+        set.totalCents = subtotal + (tax ?? 0);
+      }
       await db.update(quotes).set(set).where(eq(quotes.id, id));
     }
     return true;

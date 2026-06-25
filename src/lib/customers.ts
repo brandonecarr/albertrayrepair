@@ -6,8 +6,10 @@
  * record instead of spawning duplicates. All functions no-op gracefully when
  * the DB is not configured, mirroring the rest of the data layer.
  */
-import { desc, eq, or } from "drizzle-orm";
+import { and, desc, eq, ilike, ne, or, sql, type SQL } from "drizzle-orm";
 import { db, isDbConfigured } from "./db";
+import { isUniqueViolation } from "./db/errors";
+import { clampLimit, type Cursor, type Page } from "./pagination";
 import {
   customers,
   leads,
@@ -16,6 +18,15 @@ import {
   payments,
   type Customer,
 } from "./db/schema";
+
+/** Build the OR-condition that matches a customer by phone or email key. */
+function keyMatch(phoneKey: string | null, emailKey: string | null): SQL | undefined {
+  const conds: SQL[] = [];
+  if (phoneKey) conds.push(eq(customers.phoneKey, phoneKey));
+  if (emailKey) conds.push(eq(customers.emailKey, emailKey));
+  if (conds.length === 0) return undefined;
+  return conds.length === 1 ? conds[0] : or(...conds);
+}
 
 /** Digits-only phone key (last 10 digits) for dedupe. Null if too short. */
 export function phoneKeyOf(phone: string | null | undefined): string | null {
@@ -77,17 +88,12 @@ export async function findOrCreateCustomer(
   const phoneKey = phoneKeyOf(input.phone);
   const emailKey = emailKeyOf(input.email);
 
+  const match = keyMatch(phoneKey, emailKey);
+
   try {
     // Match on either key.
-    if (phoneKey || emailKey) {
-      const conds = [];
-      if (phoneKey) conds.push(eq(customers.phoneKey, phoneKey));
-      if (emailKey) conds.push(eq(customers.emailKey, emailKey));
-      const existing = await db
-        .select()
-        .from(customers)
-        .where(conds.length === 1 ? conds[0] : or(...conds))
-        .limit(1);
+    if (match) {
+      const existing = await db.select().from(customers).where(match).limit(1);
 
       if (existing[0]) {
         const c = existing[0];
@@ -110,18 +116,33 @@ export async function findOrCreateCustomer(
       }
     }
 
-    const inserted = await db
-      .insert(customers)
-      .values({
-        name: input.name,
-        phone: input.phone ?? null,
-        email: input.email ?? null,
-        address: input.address ?? null,
-        phoneKey,
-        emailKey,
-      })
-      .returning({ id: customers.id });
-    return inserted[0]?.id ?? null;
+    try {
+      const inserted = await db
+        .insert(customers)
+        .values({
+          name: input.name,
+          phone: input.phone ?? null,
+          email: input.email ?? null,
+          address: input.address ?? null,
+          phoneKey,
+          emailKey,
+        })
+        .returning({ id: customers.id });
+      return inserted[0]?.id ?? null;
+    } catch (err) {
+      // Concurrent first-time submission from the same person: the partial
+      // unique index rejected our insert. Re-select the row the winner created
+      // instead of failing (which would otherwise lose the lead).
+      if (isUniqueViolation(err) && match) {
+        const raced = await db
+          .select({ id: customers.id })
+          .from(customers)
+          .where(match)
+          .limit(1);
+        if (raced[0]) return raced[0].id;
+      }
+      throw err;
+    }
   } catch (err) {
     console.error("[db] findOrCreateCustomer failed:", err);
     return null;
@@ -149,51 +170,118 @@ export async function createCustomer(input: {
   const phoneKey = phoneKeyOf(input.phone);
   const emailKey = emailKeyOf(input.email);
 
+  const match = keyMatch(phoneKey, emailKey);
+
   try {
-    if (phoneKey || emailKey) {
-      const conds = [];
-      if (phoneKey) conds.push(eq(customers.phoneKey, phoneKey));
-      if (emailKey) conds.push(eq(customers.emailKey, emailKey));
+    if (match) {
       const existing = await db
         .select({ id: customers.id })
         .from(customers)
-        .where(conds.length === 1 ? conds[0] : or(...conds))
+        .where(match)
         .limit(1);
       if (existing[0]) return { ok: true, id: existing[0].id, existed: true };
     }
 
-    const inserted = await db
-      .insert(customers)
-      .values({
-        name: input.name,
-        phone: input.phone ?? null,
-        email: input.email ?? null,
-        address: input.address ?? null,
-        notes: input.notes ?? null,
-        phoneKey,
-        emailKey,
-      })
-      .returning({ id: customers.id });
-    const id = inserted[0]?.id;
-    if (!id) return { ok: false, reason: "error" };
-    return { ok: true, id, existed: false };
+    try {
+      const inserted = await db
+        .insert(customers)
+        .values({
+          name: input.name,
+          phone: input.phone ?? null,
+          email: input.email ?? null,
+          address: input.address ?? null,
+          notes: input.notes ?? null,
+          phoneKey,
+          emailKey,
+        })
+        .returning({ id: customers.id });
+      const id = inserted[0]?.id;
+      if (!id) return { ok: false, reason: "error" };
+      return { ok: true, id, existed: false };
+    } catch (err) {
+      // Lost a race to a concurrent insert with the same phone/email — adopt it.
+      if (isUniqueViolation(err) && match) {
+        const raced = await db
+          .select({ id: customers.id })
+          .from(customers)
+          .where(match)
+          .limit(1);
+        if (raced[0]) return { ok: true, id: raced[0].id, existed: true };
+      }
+      throw err;
+    }
   } catch (err) {
     console.error("[db] createCustomer failed:", err);
     return { ok: false, reason: "error" };
   }
 }
 
-/** All customers, newest first. Empty when the DB isn't configured. */
-export async function listCustomers(): Promise<AdminCustomer[]> {
-  if (!isDbConfigured || !db) return [];
+/** A page of customers, newest first (keyset paginated). */
+export async function listCustomers(
+  opts: { limit?: number; before?: Cursor } = {}
+): Promise<Page<AdminCustomer>> {
+  if (!isDbConfigured || !db) return { items: [], nextCursor: null };
+  const limit = clampLimit(opts.limit);
   try {
+    const where = opts.before
+      ? sql`(${customers.createdAt}, ${customers.id}) < (${new Date(opts.before.createdAt)}, ${opts.before.id})`
+      : undefined;
     const rows = await db
       .select()
       .from(customers)
-      .orderBy(desc(customers.createdAt));
-    return rows.map(toAdminCustomer);
+      .where(where)
+      .orderBy(desc(customers.createdAt), desc(customers.id))
+      .limit(limit + 1);
+    const hasMore = rows.length > limit;
+    const items = rows.slice(0, limit).map(toAdminCustomer);
+    const last = items[items.length - 1];
+    return {
+      items,
+      nextCursor: hasMore && last ? { createdAt: last.createdAt, id: last.id } : null,
+    };
   } catch (err) {
     console.error("[db] failed to list customers:", err);
+    return { items: [], nextCursor: null };
+  }
+}
+
+/** Lightweight customer shape for pickers (merge / reassign). */
+export type CustomerLite = { id: string; name: string; phone: string | null; email: string | null };
+
+/**
+ * Search customers by name/phone/email for on-demand pickers, capped by LIMIT
+ * so it never loads the whole table. Backed by trigram indexes for the ILIKE.
+ */
+export async function searchCustomers(
+  query: string,
+  opts: { excludeId?: string; limit?: number } = {}
+): Promise<CustomerLite[]> {
+  if (!isDbConfigured || !db) return [];
+  const limit = Math.min(opts.limit ?? 8, 25);
+  const q = query.trim();
+  try {
+    const conds: SQL[] = [];
+    if (opts.excludeId) conds.push(ne(customers.id, opts.excludeId));
+    if (q) {
+      const like = `%${q.replace(/[%_]/g, "\\$&")}%`;
+      const match = or(
+        ilike(customers.name, like),
+        ilike(customers.phone, like),
+        ilike(customers.email, like)
+      );
+      if (match) conds.push(match);
+    }
+    const where =
+      conds.length === 0 ? undefined : conds.length === 1 ? conds[0] : and(...conds);
+    const rows = await db
+      .select({ id: customers.id, name: customers.name, phone: customers.phone, email: customers.email })
+      .from(customers)
+      .where(where)
+      .orderBy(desc(customers.createdAt))
+      .limit(limit);
+    return rows;
+  } catch (err) {
+    console.error("[db] failed to search customers:", err);
     return [];
   }
 }
@@ -232,8 +320,11 @@ export type MergeResult =
  * then delete the duplicate — all atomically.
  *
  * The Neon HTTP driver has no interactive transactions, so this runs as a
- * single `db.batch([...])` (one server-side transaction). The duplicate is
- * deleted LAST so the primary can safely adopt its unique phone/email keys.
+ * single `db.batch([...])` (one server-side transaction). Ordering matters:
+ * reassign children FIRST (so deleting the duplicate can't cascade them away),
+ * then DELETE the duplicate to free its unique phone/email keys, and only THEN
+ * update the primary to adopt those keys — otherwise the primary update would
+ * collide with the still-present duplicate on the partial unique index (23505).
  */
 export async function mergeCustomers(
   primaryId: string,
@@ -269,8 +360,9 @@ export async function mergeCustomers(
       db.update(jobs).set({ customerId: primaryId }).where(eq(jobs.customerId, duplicateId)),
       db.update(quotes).set({ customerId: primaryId }).where(eq(quotes.customerId, duplicateId)),
       db.update(payments).set({ customerId: primaryId }).where(eq(payments.customerId, duplicateId)),
-      db.update(customers).set(set).where(eq(customers.id, primaryId)),
+      // Delete BEFORE the key-adopting update so the unique keys are free.
       db.delete(customers).where(eq(customers.id, duplicateId)),
+      db.update(customers).set(set).where(eq(customers.id, primaryId)),
     ]);
     return { ok: true };
   } catch (err) {

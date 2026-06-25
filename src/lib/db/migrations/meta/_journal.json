@@ -50,6 +50,13 @@
       "when": 1782342444404,
       "tag": "0006_hot_groot",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1782395794967,
+      "tag": "0007_bouncy_echo",
+      "breakpoints": true
     }
   ]
 }

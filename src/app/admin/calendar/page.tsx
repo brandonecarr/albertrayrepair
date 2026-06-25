@@ -5,13 +5,13 @@ import {
   startOfWeekIso,
   weekDates,
   addDays,
-  isoOf,
   fmtRange,
   startOfMonthIso,
   addMonths,
   monthGridDays,
   fmtMonthYear,
 } from "@/lib/date-utils";
+import { businessTodayIso } from "@/lib/timezone";
 import AdminTopBar from "@/components/admin/AdminTopBar";
 import BookingCalendar from "@/components/admin/BookingCalendar";
 import MonthCalendar from "@/components/admin/MonthCalendar";
@@ -26,7 +26,7 @@ export default async function CalendarPage({
   searchParams: Promise<{ week?: string; month?: string; view?: string }>;
 }) {
   const sp = await searchParams;
-  const todayIso = isoOf(new Date());
+  const todayIso = businessTodayIso();
   const isMonth = sp.view === "month";
 
   // Scope-dropdown targets: jump to the current week / current month.

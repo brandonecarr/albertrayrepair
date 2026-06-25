@@ -25,12 +25,12 @@ const BASE: [number, number] = [34.5008, -117.1858]; // Apple Valley
 
 // ── Free, key-less services ───────────────────────────────────────────────
 
-async function geocode(address: string): Promise<Geo | null> {
+async function geocode(address: string, signal?: AbortSignal): Promise<Geo | null> {
   try {
     const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(
       address
     )}&limit=1&lat=${BASE[0]}&lon=${BASE[1]}`;
-    const res = await fetch(url);
+    const res = await fetch(url, { signal });
     if (!res.ok) return null;
     const data = (await res.json()) as {
       features?: { geometry?: { coordinates?: number[] } }[];
@@ -44,12 +44,12 @@ async function geocode(address: string): Promise<Geo | null> {
 }
 
 /** OSRM trip solves the TSP — returns the optimized order of input indices. */
-async function optimizeOrder(geos: Geo[]): Promise<number[] | null> {
+async function optimizeOrder(geos: Geo[], signal?: AbortSignal): Promise<number[] | null> {
   if (geos.length < 2) return geos.map((_, i) => i);
   try {
     const path = geos.map((g) => `${g.lon},${g.lat}`).join(";");
     const url = `https://router.project-osrm.org/trip/v1/driving/${path}?source=first&roundtrip=true&overview=false`;
-    const res = await fetch(url);
+    const res = await fetch(url, { signal });
     if (!res.ok) return null;
     const data = (await res.json()) as {
       code?: string;
@@ -67,13 +67,14 @@ async function optimizeOrder(geos: Geo[]): Promise<number[] | null> {
 
 /** OSRM route — road geometry + distance/duration for a given order. */
 async function routeFor(
-  geos: Geo[]
+  geos: Geo[],
+  signal?: AbortSignal
 ): Promise<{ line: [number, number][]; meters: number; seconds: number } | null> {
   if (geos.length < 2) return null;
   try {
     const path = geos.map((g) => `${g.lon},${g.lat}`).join(";");
     const url = `https://router.project-osrm.org/route/v1/driving/${path}?overview=full&geometries=geojson`;
-    const res = await fetch(url);
+    const res = await fetch(url, { signal });
     if (!res.ok) return null;
     const data = (await res.json()) as {
       routes?: {
@@ -94,6 +95,15 @@ async function routeFor(
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────
+
+/** Escape text before injecting it into a Leaflet popup's raw HTML. */
+function esc(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
 
 /** Rotate an order array so `value` comes first (keeps the optimized sequence). */
 function rotateToStart(order: number[], value: number): number[] {
@@ -133,6 +143,7 @@ export default function RouteManager({
   const [summary, setSummary] = useState<{ meters: number; seconds: number } | null>(null);
   const [busy, setBusy] = useState(false);
   const [unmappable, setUnmappable] = useState<string[]>([]);
+  const [routeWarning, setRouteWarning] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const Lref = useRef<typeof import("leaflet") | null>(null);
@@ -162,7 +173,9 @@ export default function RouteManager({
       });
       Lm.marker([geo.lat, geo.lon], { icon })
         .addTo(group)
-        .bindPopup(`<strong>${pos + 1}. ${stop.name}</strong><br/>${stop.time} · ${stop.address}`);
+        .bindPopup(
+          `<strong>${pos + 1}. ${esc(stop.name)}</strong><br/>${esc(stop.time)} · ${esc(stop.address)}`
+        );
     });
     markersRef.current = group;
 
@@ -179,14 +192,16 @@ export default function RouteManager({
   // Build everything on mount (parent remounts via key={day}).
   useEffect(() => {
     let cancelled = false;
+    const ac = new AbortController();
     (async () => {
       setStatus("loading");
+      setRouteWarning(false);
       const Lmod = await import("leaflet");
       if (cancelled) return;
       Lref.current = Lmod;
 
       const results = await Promise.all(
-        stops.map(async (stop) => ({ stop, geo: await geocode(stop.address) }))
+        stops.map(async (stop) => ({ stop, geo: await geocode(stop.address, ac.signal) }))
       );
       if (cancelled) return;
       const ok = results.filter((r): r is Located => r.geo !== null);
@@ -215,12 +230,16 @@ export default function RouteManager({
       let line: [number, number][] | null = null;
       let summ: { meters: number; seconds: number } | null = null;
       if (ok.length >= 2) {
-        const opt = await optimizeOrder(ok.map((m) => m.geo));
+        const opt = await optimizeOrder(ok.map((m) => m.geo), ac.signal);
         if (opt) ord = rotateToStart(opt, 0);
-        const rt = await routeFor(ord.map((i) => ok[i].geo));
+        const rt = await routeFor(ord.map((i) => ok[i].geo), ac.signal);
         if (rt) {
           line = rt.line;
           summ = { meters: rt.meters, seconds: rt.seconds };
+        } else if (!cancelled) {
+          // Geocoding worked but the router is unreachable — show pins without
+          // a drawn route and tell Albert rather than silently dropping it.
+          setRouteWarning(true);
         }
       }
       if (cancelled) return;
@@ -235,6 +254,7 @@ export default function RouteManager({
     })();
     return () => {
       cancelled = true;
+      ac.abort();
       mapRef.current?.remove();
       mapRef.current = null;
     };
@@ -354,6 +374,12 @@ export default function RouteManager({
           {unmappable.length > 0 && (
             <li className="routeUnmappable">
               Couldn&rsquo;t map: {unmappable.join(", ")} (check the address)
+            </li>
+          )}
+          {routeWarning && (
+            <li className="routeUnmappable">
+              Routing is unavailable right now — showing stops without a drawn
+              route. The optimized order may be approximate.
             </li>
           )}
         </ol>

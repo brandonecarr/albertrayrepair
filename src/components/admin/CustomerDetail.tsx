@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { AdminCustomer } from "@/lib/customers";
@@ -50,6 +50,42 @@ function fmtDate(iso: string): string {
   });
 }
 
+/**
+ * Debounced, on-demand customer search for the merge / reassign pickers.
+ * Hits the server (trigram-indexed ILIKE, capped) so we never ship the whole
+ * customer table to the client just to populate a dropdown.
+ */
+function useCustomerSearch(excludeId: string) {
+  const [q, setQ] = useState("");
+  const [results, setResults] = useState<CustomerLite[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    const ac = new AbortController();
+    const t = setTimeout(async () => {
+      setLoading(true);
+      try {
+        const params = new URLSearchParams({ q, exclude: excludeId });
+        const res = await fetch(`/api/admin/customers/search?${params}`, { signal: ac.signal });
+        const data = await res.json().catch(() => ({}));
+        if (active) setResults(Array.isArray(data.results) ? data.results : []);
+      } catch {
+        /* aborted or network error — leave prior results */
+      } finally {
+        if (active) setLoading(false);
+      }
+    }, 200);
+    return () => {
+      active = false;
+      ac.abort();
+      clearTimeout(t);
+    };
+  }, [q, excludeId]);
+
+  return { q, setQ, results, loading };
+}
+
 export default function CustomerDetail({
   customer,
   leads,
@@ -57,7 +93,6 @@ export default function CustomerDetail({
   quotes,
   payments,
   lifetimeSpentCents,
-  otherCustomers,
 }: {
   customer: AdminCustomer;
   leads: AdminLead[];
@@ -65,7 +100,6 @@ export default function CustomerDetail({
   quotes: AdminQuote[];
   payments: AdminPayment[];
   lifetimeSpentCents: number;
-  otherCustomers: CustomerLite[];
 }) {
   const router = useRouter();
   const [jobs, setJobs] = useState<AdminJob[]>(initialJobs);
@@ -214,7 +248,6 @@ export default function CustomerDetail({
         {merging && (
           <MergePanel
             customerId={customer.id}
-            otherCustomers={otherCustomers}
             onClose={() => setMerging(false)}
           />
         )}
@@ -439,9 +472,7 @@ export default function CustomerDetail({
                     : l.message ?? ""}
                 </span>
                 <span className="leadHistWhen">{fmtDate(l.createdAt)}</span>
-                {otherCustomers.length > 0 && (
-                  <ReassignLead leadId={l.id} otherCustomers={otherCustomers} />
-                )}
+                <ReassignLead leadId={l.id} excludeId={customer.id} />
               </div>
             ))}
           </div>
@@ -452,15 +483,11 @@ export default function CustomerDetail({
 }
 
 /** Move a lead to another customer (the "<both> reassign" path). */
-function ReassignLead({
-  leadId,
-  otherCustomers,
-}: {
-  leadId: string;
-  otherCustomers: CustomerLite[];
-}) {
+function ReassignLead({ leadId, excludeId }: { leadId: string; excludeId: string }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
+  const [open, setOpen] = useState(false);
+  const { q, setQ, results } = useCustomerSearch(excludeId);
 
   async function move(customerId: string) {
     if (!customerId) return;
@@ -474,57 +501,68 @@ function ReassignLead({
       if (res.ok) router.refresh();
     } finally {
       setBusy(false);
+      setOpen(false);
     }
   }
 
-  return (
-    <select
-      className="leadReassign"
-      defaultValue=""
-      disabled={busy}
-      onChange={(e) => move(e.target.value)}
-      aria-label="Move lead to another customer"
-      title="Move to another customer"
-    >
-      <option value="" disabled>
+  if (!open) {
+    return (
+      <button
+        type="button"
+        className="leadReassign"
+        onClick={() => setOpen(true)}
+        title="Move to another customer"
+      >
         Move to…
-      </option>
-      {otherCustomers.map((c) => (
-        <option key={c.id} value={c.id}>
-          {c.name}
-          {c.phone ? ` · ${c.phone}` : ""}
-        </option>
-      ))}
-    </select>
+      </button>
+    );
+  }
+
+  return (
+    <div className="reassignPop">
+      <input
+        className="adminInput"
+        autoFocus
+        placeholder="Search customer…"
+        value={q}
+        disabled={busy}
+        onChange={(e) => setQ(e.target.value)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        aria-label="Search a customer to move this lead to"
+      />
+      {results.length > 0 && (
+        <div className="reassignResults">
+          {results.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              className="reassignResult"
+              disabled={busy}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => move(c.id)}
+            >
+              {c.name}
+              {c.phone ? ` · ${c.phone}` : c.email ? ` · ${c.email}` : ""}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
 /** Merge another (duplicate) customer's records into this one. */
 function MergePanel({
   customerId,
-  otherCustomers,
   onClose,
 }: {
   customerId: string;
-  otherCustomers: CustomerLite[];
   onClose: () => void;
 }) {
   const router = useRouter();
-  const [q, setQ] = useState("");
+  const { q, setQ, results: matches } = useCustomerSearch(customerId);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-
-  const matches = useMemo(() => {
-    const needle = q.trim().toLowerCase();
-    if (!needle) return otherCustomers.slice(0, 6);
-    return otherCustomers
-      .filter((c) =>
-        [c.name, c.phone, c.email]
-          .filter(Boolean)
-          .some((v) => v!.toLowerCase().includes(needle))
-      )
-      .slice(0, 8);
-  }, [q, otherCustomers]);
 
   async function merge(duplicateId: string, name: string) {
     if (!confirm(`Merge "${name}" into this customer? Their leads, jobs, quotes, and payments move here and "${name}" is removed.`)) {

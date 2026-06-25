@@ -28,8 +28,35 @@ export function rateLimit(key: string, limit = 5, windowMs = 60_000): boolean {
   return true;
 }
 
+/**
+ * Best-available client IP. Prefer headers the hosting platform sets itself
+ * (Vercel's `x-real-ip` / `x-vercel-forwarded-for`), which a client can't
+ * spoof, over the leftmost token of `x-forwarded-for` (attacker-controlled and
+ * trivially rotated to bypass per-IP limits). Falls back to XFF only if the
+ * platform headers are absent (e.g. local dev).
+ */
 export function clientIp(req: Request): string {
+  const real = req.headers.get("x-real-ip")?.trim();
+  if (real) return real;
+
+  const vercel = req.headers.get("x-vercel-forwarded-for");
+  if (vercel) return vercel.split(",")[0]!.trim();
+
   const fwd = req.headers.get("x-forwarded-for");
   if (fwd) return fwd.split(",")[0]!.trim();
-  return req.headers.get("x-real-ip")?.trim() || "unknown";
+
+  return "unknown";
+}
+
+/**
+ * Reject obviously oversized request bodies before parsing them. Uses the
+ * declared Content-Length (cheap, no buffering). Paired with the per-field
+ * caps in validation schemas — this just stops a multi-MB payload from being
+ * read into memory at all. Returns true if the request should be rejected.
+ */
+export function bodyTooLarge(req: Request, maxBytes = 16_384): boolean {
+  const len = req.headers.get("content-length");
+  if (!len) return false;
+  const n = Number(len);
+  return Number.isFinite(n) && n > maxBytes;
 }

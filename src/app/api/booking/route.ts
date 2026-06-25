@@ -2,12 +2,15 @@ import { NextResponse } from "next/server";
 import { bookingSchema } from "@/lib/validation";
 import { notifyNewBooking, sendBookingConfirmation } from "@/lib/notify";
 import { saveBookingLead } from "@/lib/leads";
-import { createBookingRequest } from "@/lib/scheduling";
-import { rateLimit, clientIp } from "@/lib/rate-limit";
+import { createBookingRequest, linkBookingLead } from "@/lib/scheduling";
+import { rateLimit, clientIp, bodyTooLarge } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
+  if (bodyTooLarge(req)) {
+    return NextResponse.json({ error: "Request too large." }, { status: 413 });
+  }
   if (!rateLimit(`booking:${clientIp(req)}`)) {
     return NextResponse.json(
       { error: "Too many requests. Please try again in a minute." },
@@ -64,9 +67,13 @@ export async function POST(req: Request) {
     );
   }
 
-  // Persist to the lead inbox (audit), notify Albert, and send the customer
-  // their confirmation. These run for both DB-backed and DB-less deployments.
-  await saveBookingLead(data);
+  // Persist to the lead inbox (audit), then link the reserved booking to that
+  // lead so the admin can trace one to the other. Then notify Albert and send
+  // the customer their confirmation. All run with or without a database.
+  const leadId = await saveBookingLead(data);
+  if (reservation.ok && leadId) {
+    await linkBookingLead(reservation.id, leadId);
+  }
   await Promise.all([notifyNewBooking(data), sendBookingConfirmation(data)]);
   return NextResponse.json({ ok: true });
 }

@@ -193,7 +193,7 @@ function QuoteCard({ quote }: { quote: AdminQuote }) {
           </>
         )}
         {quote.jobId && (
-          <Link className="quoteAct quoteActLink" href="/admin/jobs">
+          <Link className="quoteAct quoteActLink" href={`/admin/jobs/${quote.jobId}`}>
             View job →
           </Link>
         )}

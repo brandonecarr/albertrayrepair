@@ -27,7 +27,10 @@ const hasTwilio = Boolean(
 
 async function sendEmail(subject: string, lines: string[]) {
   if (!hasResend) {
-    console.info(`[notify] EMAIL (not configured) — ${subject}\n${lines.join("\n")}`);
+    // Don't log the body — it contains customer PII (name/phone/email/address)
+    // that would otherwise sit in plaintext server logs. Subject only.
+    void lines;
+    console.info(`[notify] EMAIL not sent (Resend not configured) — "${subject}"`);
     return;
   }
   try {
@@ -47,7 +50,8 @@ async function sendEmail(subject: string, lines: string[]) {
 
 async function sendSms(body: string) {
   if (!hasTwilio) {
-    console.info(`[notify] SMS (not configured) — ${body}`);
+    void body;
+    console.info("[notify] SMS not sent (Twilio not configured)");
     return;
   }
   try {
@@ -66,7 +70,8 @@ async function sendSms(body: string) {
 /** Send an email to an arbitrary recipient (e.g. the customer). */
 async function sendEmailTo(to: string, subject: string, body: string) {
   if (!hasResendKey) {
-    console.info(`[notify] EMAIL→${to} (not configured) — ${subject}\n${body}`);
+    void body;
+    console.info(`[notify] customer EMAIL not sent (Resend not configured) — "${subject}"`);
     return;
   }
   try {

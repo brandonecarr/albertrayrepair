@@ -8,6 +8,8 @@
  */
 import { and, asc, desc, eq, gte, inArray, lte } from "drizzle-orm";
 import { db, isDbConfigured } from "./db";
+import { isUniqueViolation } from "./db/errors";
+import { weekdayOfIso } from "./timezone";
 import {
   availability,
   blockedSlots,
@@ -41,10 +43,8 @@ export const WEEKDAY_NAMES = [
 
 const ACTIVE_STATUSES: BookingStatus[] = ["requested", "confirmed"];
 
-/** Weekday (0-6) for a YYYY-MM-DD string, parsed in local time. */
-function weekdayOf(dateIso: string): number {
-  return new Date(`${dateIso}T00:00:00`).getDay();
-}
+/** Weekday (0-6) for a YYYY-MM-DD string — timezone independent. */
+const weekdayOf = weekdayOfIso;
 
 // ─── Availability template ───────────────────────────────────────────────
 
@@ -148,25 +148,6 @@ export type CreateBookingResult =
   | { ok: false; reason: "db_unconfigured" }
   | { ok: false; reason: "error" };
 
-function isUniqueViolation(err: unknown): boolean {
-  // Drizzle's neon-http driver wraps the driver error: the top-level message
-  // is just "Failed query: …" and the Postgres code (23505) lives on
-  // `err.cause` (the underlying NeonDbError). Walk the chain so we catch it
-  // whether it's wrapped or raw.
-  const seen = new Set<unknown>();
-  let node: unknown = err;
-  while (node && typeof node === "object" && !seen.has(node)) {
-    seen.add(node);
-    const e = node as { code?: string; message?: string; cause?: unknown; sourceError?: unknown };
-    if (e.code === "23505") return true;
-    if (e.message && /duplicate key|unique constraint|bookings_active_slot/i.test(e.message)) {
-      return true;
-    }
-    node = e.cause ?? e.sourceError;
-  }
-  return false;
-}
-
 /**
  * Reserve a slot in `requested` state. The DB's partial unique index is the
  * real guard against double-booking; a concurrent insert surfaces here as
@@ -198,6 +179,16 @@ export async function createBookingRequest(
     if (isUniqueViolation(err)) return { ok: false, reason: "slot_taken" };
     console.error("[scheduling] failed to create booking:", err);
     return { ok: false, reason: "error" };
+  }
+}
+
+/** Link a reserved booking row to the lead it produced (best-effort). */
+export async function linkBookingLead(bookingId: string, leadId: string): Promise<void> {
+  if (!isDbConfigured || !db) return;
+  try {
+    await db.update(bookings).set({ leadId }).where(eq(bookings.id, bookingId));
+  } catch (err) {
+    console.error("[scheduling] failed to link booking to lead:", err);
   }
 }
 
@@ -312,12 +303,19 @@ export async function decideBooking(
 ): Promise<boolean> {
   if (!isDbConfigured || !db) return false;
   try {
-    await db
+    // Only transition from an active state. Re-confirming a declined/cancelled
+    // booking could collide with the slot's partial unique index, so block it
+    // here and report whether a row actually changed.
+    const allowedFrom: BookingStatus[] =
+      status === "confirmed" ? ["requested"] : ["requested", "confirmed"];
+    const updated = await db
       .update(bookings)
       .set({ status, decidedAt: new Date() })
-      .where(eq(bookings.id, id));
-    return true;
+      .where(and(eq(bookings.id, id), inArray(bookings.status, allowedFrom)))
+      .returning({ id: bookings.id });
+    return updated.length > 0;
   } catch (err) {
+    if (isUniqueViolation(err)) return false;
     console.error("[scheduling] failed to decide booking:", err);
     return false;
   }
@@ -368,8 +366,11 @@ export async function addBlock(
 export async function removeBlock(id: string): Promise<boolean> {
   if (!isDbConfigured || !db) return false;
   try {
-    await db.delete(blockedSlots).where(eq(blockedSlots.id, id));
-    return true;
+    const deleted = await db
+      .delete(blockedSlots)
+      .where(eq(blockedSlots.id, id))
+      .returning({ id: blockedSlots.id });
+    return deleted.length > 0;
   } catch (err) {
     console.error("[scheduling] failed to remove block:", err);
     return false;

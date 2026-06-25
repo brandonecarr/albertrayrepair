@@ -8,7 +8,7 @@ import LeadInbox from "@/components/admin/LeadInbox";
 export const dynamic = "force-dynamic";
 
 export default async function AdminInboxPage() {
-  const leads = await listLeads();
+  const { items: leads, nextCursor } = await listLeads();
 
   return (
     <>
@@ -38,7 +38,7 @@ export default async function AdminInboxPage() {
             </div>
           </div>
         ) : (
-          <LeadInbox initialLeads={leads} />
+          <LeadInbox initialLeads={leads} initialCursor={nextCursor} />
         )}
 
         {!isAuthConfigured && (

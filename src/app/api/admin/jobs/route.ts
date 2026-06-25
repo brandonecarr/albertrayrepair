@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createJob } from "@/lib/jobs";
+import { dollarsToCentsStrict } from "@/lib/money";
 import type { JobStatus } from "@/lib/db/schema";
 
 export const runtime = "nodejs";
@@ -39,14 +40,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid status." }, { status: 400 });
   }
 
-  // amountDollars (number) → cents.
+  // amountDollars (free-text) → cents.
   let amountCents: number | null = null;
   if (body.amountDollars !== undefined && body.amountDollars !== null && body.amountDollars !== "") {
-    const n = Number(body.amountDollars);
-    if (!Number.isFinite(n) || n < 0) {
+    const cents = dollarsToCentsStrict(body.amountDollars);
+    if (Number.isNaN(cents)) {
       return NextResponse.json({ error: "Invalid amount." }, { status: 400 });
     }
-    amountCents = Math.round(n * 100);
+    amountCents = cents;
   }
 
   const str = (v: unknown): string | null =>

@@ -13,8 +13,13 @@ export const site = {
   description:
     "Plumbing, carpentry, drywall, and full-home repairs and restoration for Apple Valley and the High Desert. Honest pricing, expert work, and a craftsman who shows up — available 24/7.",
 
+  // Canonical production URL (no trailing slash). Used for SEO metadata,
+  // sitemap, and structured data. Override per-deploy with NEXT_PUBLIC_BASE_URL.
+  url: "https://albertrayrepair.vercel.app",
+
   // --- Contact ---
   phoneDisplay: "(909) 471-0834",
+  phoneE164: "+19094710834",
   phoneHref: "tel:+19094710834",
   email: "hello@albertrayhandyman.com",
 

@@ -5,8 +5,9 @@
  * `cancelled` as a terminal off-ramp. All functions no-op gracefully when the
  * DB is not configured.
  */
-import { desc, eq, inArray } from "drizzle-orm";
+import { desc, eq, inArray, sql } from "drizzle-orm";
 import { db, isDbConfigured } from "./db";
+import { clampLimit, type Cursor, type Page } from "./pagination";
 import { jobs, jobNotes, customers, bookings, type Job, type JobStatus } from "./db/schema";
 import { findOrCreateCustomer } from "./customers";
 import { getLeadById, setLeadStatus } from "./leads";
@@ -363,19 +364,33 @@ export async function getJobLinksForBookings(
   }
 }
 
-/** All jobs with their customer name, newest first. */
-export async function listJobs(): Promise<AdminJob[]> {
-  if (!isDbConfigured || !db) return [];
+/** A page of jobs with their customer name, newest first (keyset paginated). */
+export async function listJobs(
+  opts: { limit?: number; before?: Cursor } = {}
+): Promise<Page<AdminJob>> {
+  if (!isDbConfigured || !db) return { items: [], nextCursor: null };
+  const limit = clampLimit(opts.limit);
   try {
+    const where = opts.before
+      ? sql`(${jobs.createdAt}, ${jobs.id}) < (${new Date(opts.before.createdAt)}, ${opts.before.id})`
+      : undefined;
     const rows = await db
       .select({ job: jobs, customerName: customers.name })
       .from(jobs)
       .leftJoin(customers, eq(jobs.customerId, customers.id))
-      .orderBy(desc(jobs.createdAt));
-    return rows.map((r) => toAdminJob(r.job, r.customerName));
+      .where(where)
+      .orderBy(desc(jobs.createdAt), desc(jobs.id))
+      .limit(limit + 1);
+    const hasMore = rows.length > limit;
+    const items = rows.slice(0, limit).map((r) => toAdminJob(r.job, r.customerName));
+    const last = items[items.length - 1];
+    return {
+      items,
+      nextCursor: hasMore && last ? { createdAt: last.createdAt, id: last.id } : null,
+    };
   } catch (err) {
     console.error("[db] failed to list jobs:", err);
-    return [];
+    return { items: [], nextCursor: null };
   }
 }
 
@@ -397,7 +412,12 @@ export async function listJobsForCustomer(
   }
 }
 
-/** Move a job to a new lifecycle status. Stamps completedAt on completion. */
+/**
+ * Move a job to a new lifecycle status. Stamps completedAt on completion and
+ * clears it when moving back to an unfinished state (so "completed on" and the
+ * revenue date never show a stale timestamp). "invoiced" keeps the existing
+ * completion date since it's a post-completion state.
+ */
 export async function setJobStatus(
   id: string,
   status: JobStatus
@@ -409,6 +429,7 @@ export async function setJobStatus(
       updatedAt: new Date(),
     };
     if (status === "completed") set.completedAt = new Date();
+    else if (status !== "invoiced") set.completedAt = null;
     await db.update(jobs).set(set).where(eq(jobs.id, id));
     return true;
   } catch (err) {

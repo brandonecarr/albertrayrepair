@@ -3,10 +3,11 @@
  * `leads` table. No-ops gracefully (logs only) when the DB is not yet
  * configured, so submissions never throw and notifications still fire.
  */
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import { db, isDbConfigured } from "./db";
 import { leads, type NewLead, type LeadStatus } from "./db/schema";
 import { findOrCreateCustomer } from "./customers";
+import { clampLimit, type Cursor, type Page } from "./pagination";
 import type { BookingInput, ContactInput } from "./validation";
 
 /**
@@ -30,10 +31,12 @@ export type AdminLead = {
   readAt: string | null;
 };
 
-export async function saveBookingLead(b: BookingInput): Promise<void> {
+/** Persists a booking lead. Returns the new lead id (or null) so the caller
+ *  can link it to the reserved booking row. */
+export async function saveBookingLead(b: BookingInput): Promise<string | null> {
   if (!isDbConfigured || !db) {
     console.info("[db] not configured — booking lead not persisted (set DATABASE_URL to enable)");
-    return;
+    return null;
   }
   try {
     const customerId = await findOrCreateCustomer({
@@ -55,9 +58,11 @@ export async function saveBookingLead(b: BookingInput): Promise<void> {
       message: b.notes || null,
       payload: b,
     };
-    await db.insert(leads).values(row);
+    const inserted = await db.insert(leads).values(row).returning({ id: leads.id });
+    return inserted[0]?.id ?? null;
   } catch (err) {
     console.error("[db] failed to persist booking lead:", err);
+    return null;
   }
 }
 
@@ -113,14 +118,47 @@ function toAdminLead(r: LeadRow): AdminLead {
   };
 }
 
-/** All leads, newest first. Empty array when the DB isn't configured. */
-export async function listLeads(): Promise<AdminLead[]> {
-  if (!isDbConfigured || !db) return [];
+/** A page of leads, newest first (keyset paginated). */
+export async function listLeads(
+  opts: { limit?: number; before?: Cursor } = {}
+): Promise<Page<AdminLead>> {
+  if (!isDbConfigured || !db) return { items: [], nextCursor: null };
+  const limit = clampLimit(opts.limit);
   try {
-    const rows = await db.select().from(leads).orderBy(desc(leads.createdAt));
-    return rows.map(toAdminLead);
+    const where = opts.before
+      ? sql`(${leads.createdAt}, ${leads.id}) < (${new Date(opts.before.createdAt)}, ${opts.before.id})`
+      : undefined;
+    const rows = await db
+      .select()
+      .from(leads)
+      .where(where)
+      .orderBy(desc(leads.createdAt), desc(leads.id))
+      .limit(limit + 1); // +1 to detect whether more rows exist
+    const hasMore = rows.length > limit;
+    const items = rows.slice(0, limit).map(toAdminLead);
+    const last = items[items.length - 1];
+    return {
+      items,
+      nextCursor: hasMore && last ? { createdAt: last.createdAt, id: last.id } : null,
+    };
   } catch (err) {
     console.error("[db] failed to list leads:", err);
+    return { items: [], nextCursor: null };
+  }
+}
+
+/** The N newest leads — for the dashboard, without loading the whole table. */
+export async function listRecentLeads(limit = 6): Promise<AdminLead[]> {
+  if (!isDbConfigured || !db) return [];
+  try {
+    const rows = await db
+      .select()
+      .from(leads)
+      .orderBy(desc(leads.createdAt))
+      .limit(limit);
+    return rows.map(toAdminLead);
+  } catch (err) {
+    console.error("[db] failed to list recent leads:", err);
     return [];
   }
 }

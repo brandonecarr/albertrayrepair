@@ -2,8 +2,10 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { AdminJob } from "@/lib/jobs";
 import type { JobStatus } from "@/lib/db/schema";
+import type { Cursor } from "@/lib/pagination";
 
 const PIPELINE: JobStatus[] = [
   "quoted",
@@ -31,8 +33,33 @@ function money(cents: number | null): string {
   });
 }
 
-export default function JobBoard({ jobs: initial }: { jobs: AdminJob[] }) {
+export default function JobBoard({
+  jobs: initial,
+  initialCursor = null,
+}: {
+  jobs: AdminJob[];
+  initialCursor?: Cursor | null;
+}) {
+  const router = useRouter();
   const [jobs, setJobs] = useState<AdminJob[]>(initial);
+  const [cursor, setCursor] = useState<Cursor | null>(initialCursor);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  async function loadMore() {
+    if (!cursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const params = new URLSearchParams({ beforeAt: cursor.createdAt, beforeId: cursor.id });
+      const res = await fetch(`/api/admin/jobs/list?${params}`);
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && Array.isArray(data.items)) {
+        setJobs((prev) => [...prev, ...data.items]);
+        setCursor(data.nextCursor ?? null);
+      }
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   const byStatus = useMemo(() => {
     const m: Record<JobStatus, AdminJob[]> = {
@@ -68,6 +95,9 @@ export default function JobBoard({ jobs: initial }: { jobs: AdminJob[] }) {
         body: JSON.stringify({ status }),
       });
       if (!res.ok) throw new Error();
+      // Completing/invoicing a job changes server-computed figures elsewhere
+      // (customer lifetime spend, completed-job counts). Re-sync them.
+      router.refresh();
     } catch {
       setJobs(prev);
     }
@@ -125,6 +155,12 @@ export default function JobBoard({ jobs: initial }: { jobs: AdminJob[] }) {
             ))}
           </div>
         </div>
+      )}
+
+      {cursor && (
+        <button className="loadMoreBtn" onClick={loadMore} disabled={loadingMore}>
+          {loadingMore ? "Loading…" : "Load older jobs"}
+        </button>
       )}
     </>
   );

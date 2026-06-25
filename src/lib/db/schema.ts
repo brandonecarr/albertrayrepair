@@ -53,6 +53,11 @@ export const leads = pgTable(
     index("leads_created_idx").on(t.createdAt),
     index("leads_status_idx").on(t.status),
     index("leads_customer_idx").on(t.customerId),
+    // Composite indexes matching the real (filter, sort) access patterns so the
+    // inbox and per-customer history stay index-served as the table grows.
+    index("leads_status_created_idx").on(t.status, t.createdAt),
+    index("leads_customer_created_idx").on(t.customerId, t.createdAt),
+    index("leads_created_id_idx").on(t.createdAt, t.id), // keyset pagination
   ]
 );
 
@@ -99,6 +104,8 @@ export const bookings = pgTable(
   (t) => [
     index("bookings_date_idx").on(t.date),
     index("bookings_status_idx").on(t.status),
+    // FK lookup (findBookingByLead) — previously unindexed.
+    index("bookings_lead_idx").on(t.leadId).where(sql`lead_id is not null`),
     // Only one active (requested/confirmed) booking per slot.
     uniqueIndex("bookings_active_slot_idx")
       .on(t.date, t.time)
@@ -165,6 +172,7 @@ export const customers = pgTable(
   },
   (t) => [
     index("customers_created_idx").on(t.createdAt),
+    index("customers_created_id_idx").on(t.createdAt, t.id), // keyset pagination
     uniqueIndex("customers_phone_key_idx")
       .on(t.phoneKey)
       .where(sql`phone_key is not null`),
@@ -224,6 +232,13 @@ export const jobs = pgTable(
     index("jobs_customer_idx").on(t.customerId),
     index("jobs_status_idx").on(t.status),
     index("jobs_created_idx").on(t.createdAt),
+    // Board (status, sort), per-customer history, and lifetime-spend rollup.
+    index("jobs_status_created_idx").on(t.status, t.createdAt),
+    index("jobs_customer_created_idx").on(t.customerId, t.createdAt),
+    index("jobs_customer_status_idx").on(t.customerId, t.status),
+    index("jobs_created_id_idx").on(t.createdAt, t.id), // keyset pagination
+    // FK lookup (getJobLinksForBookings / createJobFromBooking) — was unindexed.
+    index("jobs_booking_idx").on(t.bookingId).where(sql`booking_id is not null`),
   ]
 );
 
@@ -274,6 +289,7 @@ export const quotes = pgTable(
     index("quotes_customer_idx").on(t.customerId),
     index("quotes_status_idx").on(t.status),
     index("quotes_created_idx").on(t.createdAt),
+    index("quotes_customer_created_idx").on(t.customerId, t.createdAt),
   ]
 );
 
@@ -336,6 +352,8 @@ export const payments = pgTable(
   (t) => [
     index("payments_customer_idx").on(t.customerId),
     index("payments_status_idx").on(t.status),
+    index("payments_customer_created_idx").on(t.customerId, t.createdAt),
+    index("payments_customer_status_idx").on(t.customerId, t.status),
     uniqueIndex("payments_stripe_session_idx")
       .on(t.stripeSessionId)
       .where(sql`stripe_session_id is not null`),
@@ -412,6 +430,7 @@ export const jobMaterials = pgTable(
   (t) => [
     index("job_materials_job_idx").on(t.jobId),
     index("job_materials_name_idx").on(t.name),
+    index("job_materials_created_idx").on(t.createdAt), // reports date-range scan
   ]
 );
 

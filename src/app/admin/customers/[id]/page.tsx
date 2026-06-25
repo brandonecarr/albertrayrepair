@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { isDbConfigured } from "@/lib/db";
-import { getCustomer, listCustomers } from "@/lib/customers";
+import { getCustomer } from "@/lib/customers";
 import { listLeadsForCustomer } from "@/lib/leads";
 import { listJobsForCustomer } from "@/lib/jobs";
 import { listQuotesForCustomer } from "@/lib/quotes";
@@ -37,19 +37,13 @@ export default async function CustomerDetailPage(ctx: {
   const customer = await getCustomer(id);
   if (!customer) notFound();
 
-  const [leads, jobs, quotes, payments, lifetimeSpentCents, allCustomers] =
-    await Promise.all([
-      listLeadsForCustomer(id),
-      listJobsForCustomer(id),
-      listQuotesForCustomer(id),
-      listPaymentsForCustomer(id),
-      getCustomerLifetimeSpendCents(id),
-      listCustomers(),
-    ]);
-
-  const otherCustomers = allCustomers
-    .filter((c) => c.id !== id)
-    .map((c) => ({ id: c.id, name: c.name, phone: c.phone, email: c.email }));
+  const [leads, jobs, quotes, payments, lifetimeSpentCents] = await Promise.all([
+    listLeadsForCustomer(id),
+    listJobsForCustomer(id),
+    listQuotesForCustomer(id),
+    listPaymentsForCustomer(id),
+    getCustomerLifetimeSpendCents(id),
+  ]);
 
   return (
     <>
@@ -65,7 +59,6 @@ export default async function CustomerDetailPage(ctx: {
           quotes={quotes}
           payments={payments}
           lifetimeSpentCents={lifetimeSpentCents}
-          otherCustomers={otherCustomers}
         />
       </main>
     </>

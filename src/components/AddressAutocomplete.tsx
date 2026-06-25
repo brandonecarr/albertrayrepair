@@ -148,12 +148,15 @@ export default function AddressAutocomplete({
         role="combobox"
         aria-expanded={open}
         aria-autocomplete="list"
+        aria-controls={`${id}-listbox`}
+        aria-activedescendant={open && active >= 0 ? `${id}-opt-${active}` : undefined}
       />
       {open && (
-        <ul className={styles.list} role="listbox">
+        <ul className={styles.list} role="listbox" id={`${id}-listbox`}>
           {suggestions.map((s, i) => (
             <li
               key={s}
+              id={`${id}-opt-${i}`}
               role="option"
               aria-selected={i === active}
               className={`${styles.item} ${i === active ? styles.itemActive : ""}`}
@@ -171,6 +174,11 @@ export default function AddressAutocomplete({
           </li>
         </ul>
       )}
+      <span className="sr-only" role="status" aria-live="polite">
+        {open && suggestions.length > 0
+          ? `${suggestions.length} address suggestion${suggestions.length === 1 ? "" : "s"} available`
+          : ""}
+      </span>
     </div>
   );
 }

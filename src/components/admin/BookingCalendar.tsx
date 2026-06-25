@@ -64,6 +64,7 @@ export default function BookingCalendar({
   const [blockTime, setBlockTime] = useState("");
   const [blockReason, setBlockReason] = useState("");
   const [blockBusy, setBlockBusy] = useState(false);
+  const [calError, setCalError] = useState<string | null>(null);
 
   // Day selected for route planning (defaults to today when in view).
   const [selectedDay, setSelectedDay] = useState<string | null>(() => {
@@ -114,13 +115,17 @@ export default function BookingCalendar({
 
   async function decide(id: string, status: BookingStatus) {
     setBusyId(id);
+    setCalError(null);
     try {
-      await fetch(`/api/admin/bookings/${id}`, {
+      const res = await fetch(`/api/admin/bookings/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
       });
+      if (!res.ok) throw new Error();
       router.refresh();
+    } catch {
+      setCalError("Couldn't update that booking. Check your connection and try again.");
     } finally {
       setBusyId(null);
     }
@@ -128,6 +133,7 @@ export default function BookingCalendar({
 
   async function makeJob(id: string) {
     setJobBusy(id);
+    setCalError(null);
     try {
       const res = await fetch(`/api/admin/bookings/${id}/job`, { method: "POST" });
       if (!res.ok) throw new Error();
@@ -138,6 +144,7 @@ export default function BookingCalendar({
       router.refresh();
     } catch {
       // leave the "+ Job" button in place to retry
+      setCalError("Couldn't create that job. Please try again.");
     } finally {
       setJobBusy(null);
     }
@@ -146,8 +153,9 @@ export default function BookingCalendar({
   async function addBlock() {
     if (!blockDate) return;
     setBlockBusy(true);
+    setCalError(null);
     try {
-      await fetch("/api/admin/blocks", {
+      const res = await fetch("/api/admin/blocks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -156,10 +164,13 @@ export default function BookingCalendar({
           reason: blockReason || undefined,
         }),
       });
+      if (!res.ok) throw new Error();
       setBlockTime("");
       setBlockReason("");
       setShowBlock(false);
       router.refresh();
+    } catch {
+      setCalError("Couldn't block that time. Please try again.");
     } finally {
       setBlockBusy(false);
     }
@@ -167,9 +178,13 @@ export default function BookingCalendar({
 
   async function removeBlock(id: string) {
     setBusyId(id);
+    setCalError(null);
     try {
-      await fetch(`/api/admin/blocks/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/admin/blocks/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error();
       router.refresh();
+    } catch {
+      setCalError("Couldn't remove that block. Please try again.");
     } finally {
       setBusyId(null);
     }
@@ -192,6 +207,12 @@ export default function BookingCalendar({
           {showBlock ? "Close" : "Block time off"}
         </button>
       </div>
+
+      {calError && (
+        <p className="field-error" role="alert" style={{ marginBottom: 12 }}>
+          {calError}
+        </p>
+      )}
 
       {showBlock && (
         <div className="calBlockForm">

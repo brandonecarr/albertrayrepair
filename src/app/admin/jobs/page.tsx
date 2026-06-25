@@ -6,7 +6,7 @@ import JobBoard from "@/components/admin/JobBoard";
 export const dynamic = "force-dynamic";
 
 export default async function JobsPage() {
-  const jobs = await listJobs();
+  const { items: jobs, nextCursor } = await listJobs();
 
   return (
     <>
@@ -36,7 +36,7 @@ export default async function JobsPage() {
             </div>
           </div>
         ) : (
-          <JobBoard jobs={jobs} />
+          <JobBoard jobs={jobs} initialCursor={nextCursor} />
         )}
       </main>
     </>

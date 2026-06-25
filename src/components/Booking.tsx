@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { services, site } from "@/lib/site-config";
+import { businessNowParts } from "@/lib/timezone";
 import {
   ArrowIcon,
   CalendarIcon,
@@ -23,9 +24,6 @@ const SATURDAY_SLOTS = ["8:00 AM", "9:30 AM", "11:00 AM", "12:30 PM"];
 
 const MAX_DAYS_AHEAD = 60;
 
-function startOfDay(d: Date) {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-}
 function isoDate(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
     d.getDate()
@@ -52,7 +50,14 @@ function formatPhone(value: string): string {
 type Status = "idle" | "submitting" | "success" | "error";
 
 export default function Booking() {
-  const today = useMemo(() => startOfDay(new Date()), []);
+  // "Today" must be the business's calendar date (Pacific), not the visitor's.
+  // A customer in a timezone ahead of Pacific would otherwise lose same-day
+  // booking. businessNowParts() uses the fixed business tz on both server and
+  // client, so SSR and hydration agree.
+  const today = useMemo(() => {
+    const { year, month, day } = businessNowParts();
+    return new Date(year, month - 1, day);
+  }, []);
   const maxDate = useMemo(() => {
     const d = new Date(today);
     d.setDate(d.getDate() + MAX_DAYS_AHEAD);
@@ -81,23 +86,30 @@ export default function Booking() {
   const [slots, setSlots] = useState<string[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [dayClosed, setDayClosed] = useState(false);
+  // Guards against out-of-order availability responses when the user clicks
+  // through days quickly — only the most-recently requested date may apply.
+  const slotReqRef = useRef(0);
 
   async function loadSlots(d: Date) {
+    const reqId = ++slotReqRef.current;
+    const iso = isoDate(d);
     setSlots([]);
     setDayClosed(false);
     setSlotsLoading(true);
     try {
-      const res = await fetch(`/api/availability?date=${isoDate(d)}`, {
+      const res = await fetch(`/api/availability?date=${iso}`, {
         cache: "no-store",
       });
       if (!res.ok) throw new Error();
       const data = (await res.json()) as { closed?: boolean; slots?: string[] };
+      if (reqId !== slotReqRef.current) return; // a newer day was selected
       setDayClosed(Boolean(data.closed));
       setSlots(Array.isArray(data.slots) ? data.slots : []);
     } catch {
+      if (reqId !== slotReqRef.current) return;
       setSlots(d.getDay() === 6 ? SATURDAY_SLOTS : WEEKDAY_SLOTS);
     } finally {
-      setSlotsLoading(false);
+      if (reqId === slotReqRef.current) setSlotsLoading(false);
     }
   }
 
@@ -180,7 +192,7 @@ export default function Booking() {
           company: form.company,
           date: selectedDate ? isoDate(selectedDate) : "",
           dateLabel: selectedDate ? longDate(selectedDate) : "",
-          time: selectedTime,
+          time: selectedTime ?? "",
         }),
       });
       if (!res.ok) {
@@ -310,6 +322,8 @@ export default function Booking() {
                     }`}
                     onClick={() => selectDay(d)}
                     disabled={state !== "open"}
+                    aria-pressed={Boolean(isSel)}
+                    aria-label={longDate(d)}
                     title={state === "closed" ? "Closed Sundays" : undefined}
                   >
                     {d.getDate()}
@@ -350,6 +364,7 @@ export default function Booking() {
                       className={`${styles.slot} ${
                         selectedTime === t ? styles.slotSel : ""
                       }`}
+                      aria-pressed={selectedTime === t}
                       onClick={() => {
                         setSelectedTime(t);
                         if (errors.time) setErrors((e) => ({ ...e, time: "" }));

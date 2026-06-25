@@ -24,7 +24,6 @@ export default function MonthCalendar({
   days,
   bookings,
   blocks,
-  todayIso,
   monthAnchor,
   prevMonth,
   nextMonth,

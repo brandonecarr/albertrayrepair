@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isDbConfigured } from "@/lib/db";
 import { removeBlock } from "@/lib/scheduling";
 
 export const runtime = "nodejs";
@@ -9,11 +10,17 @@ export async function DELETE(
   ctx: { params: Promise<{ id: string }> }
 ) {
   const { id } = await ctx.params;
+  if (!isDbConfigured) {
+    return NextResponse.json(
+      { error: "Database not configured." },
+      { status: 503 }
+    );
+  }
   const ok = await removeBlock(id);
   if (!ok) {
     return NextResponse.json(
-      { error: "Could not remove block. Is the database configured?" },
-      { status: 503 }
+      { error: "That block no longer exists." },
+      { status: 404 }
     );
   }
   return NextResponse.json({ ok: true });

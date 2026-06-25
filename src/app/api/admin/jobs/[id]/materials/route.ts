@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { addJobMaterial } from "@/lib/materials";
+import { dollarsToCentsStrict } from "@/lib/money";
 import type { MaterialPurchaser } from "@/lib/db/schema";
 
 export const runtime = "nodejs";
@@ -24,11 +25,11 @@ export async function POST(
 
   let priceCents = 0;
   if (body.priceDollars !== undefined && body.priceDollars !== null && body.priceDollars !== "") {
-    const n = Number(body.priceDollars);
-    if (!Number.isFinite(n) || n < 0) {
+    const cents = dollarsToCentsStrict(body.priceDollars);
+    if (Number.isNaN(cents)) {
       return NextResponse.json({ error: "Invalid price." }, { status: 400 });
     }
-    priceCents = Math.round(n * 100);
+    priceCents = cents;
   }
 
   const purchaser: MaterialPurchaser =

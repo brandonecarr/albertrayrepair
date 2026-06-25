@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { AdminCustomer } from "@/lib/customers";
+import type { Cursor } from "@/lib/pagination";
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/);
@@ -12,13 +13,22 @@ function initials(name: string): string {
   return (first + last).toUpperCase();
 }
 
+type CustomerLite = { id: string; name: string; phone: string | null; email: string | null };
+type CustomerRow = CustomerLite & { address?: string | null };
+
 export default function CustomerList({
-  customers,
+  customers: initial,
+  initialCursor = null,
 }: {
   customers: AdminCustomer[];
+  initialCursor?: Cursor | null;
 }) {
   const router = useRouter();
+  const [customers, setCustomers] = useState<AdminCustomer[]>(initial);
+  const [cursor, setCursor] = useState<Cursor | null>(initialCursor);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [q, setQ] = useState("");
+  const [searchResults, setSearchResults] = useState<CustomerLite[] | null>(null);
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({
     name: "",
@@ -54,15 +64,60 @@ export default function CustomerList({
     }
   }
 
-  const visible = useMemo(() => {
-    const needle = q.trim().toLowerCase();
-    if (!needle) return customers;
-    return customers.filter((c) =>
-      [c.name, c.phone, c.email, c.address]
-        .filter(Boolean)
-        .some((v) => v!.toLowerCase().includes(needle))
-    );
-  }, [customers, q]);
+  // Search hits the server (trigram-indexed) so it scales past the loaded page
+  // instead of filtering only what's already in memory.
+  const searching = q.trim().length > 0;
+  useEffect(() => {
+    const needle = q.trim();
+    // No synchronous reset here — when `searching` is false the grid ignores
+    // searchResults entirely, so stale results never render.
+    if (!needle) return;
+    let active = true;
+    const ac = new AbortController();
+    const t = setTimeout(async () => {
+      try {
+        const params = new URLSearchParams({ q: needle, limit: "25" });
+        const res = await fetch(`/api/admin/customers/search?${params}`, { signal: ac.signal });
+        const data = await res.json().catch(() => ({}));
+        if (active) setSearchResults(Array.isArray(data.results) ? data.results : []);
+      } catch {
+        /* aborted or failed */
+      }
+    }, 200);
+    return () => {
+      active = false;
+      ac.abort();
+      clearTimeout(t);
+    };
+  }, [q]);
+
+  async function loadMore() {
+    if (!cursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const params = new URLSearchParams({ beforeAt: cursor.createdAt, beforeId: cursor.id });
+      const res = await fetch(`/api/admin/customers/list?${params}`);
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && Array.isArray(data.items)) {
+        setCustomers((prev) => [...prev, ...data.items]);
+        setCursor(data.nextCursor ?? null);
+      }
+    } finally {
+      setLoadingMore(false);
+    }
+  }
+
+  // What the grid renders: server search results when searching, else the
+  // loaded (paginated) roster.
+  const visible: CustomerRow[] = searching
+    ? searchResults ?? []
+    : customers.map((c) => ({
+        id: c.id,
+        name: c.name,
+        phone: c.phone,
+        email: c.email,
+        address: c.address,
+      }));
 
   return (
     <>
@@ -75,7 +130,9 @@ export default function CustomerList({
           onChange={(e) => setQ(e.target.value)}
         />
         <span className="custCount">
-          {visible.length} of {customers.length}
+          {searching
+            ? `${visible.length} match${visible.length === 1 ? "" : "es"}`
+            : `${customers.length}${cursor ? "+" : ""} loaded`}
         </span>
         <button className="adminTab" onClick={() => setAdding((a) => !a)}>
           {adding ? "Close" : "+ New customer"}
@@ -159,6 +216,15 @@ export default function CustomerList({
           <div className="adminEmpty" style={{ minHeight: 140 }}>
             <p>No customers match “{q}”.</p>
           </div>
+        )}
+        {!searching && cursor && (
+          <button
+            className="loadMoreBtn"
+            onClick={loadMore}
+            disabled={loadingMore}
+          >
+            {loadingMore ? "Loading…" : "Load more customers"}
+          </button>
         )}
       </div>
       )}

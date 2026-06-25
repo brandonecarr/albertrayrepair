@@ -6,7 +6,7 @@ import CustomerList from "@/components/admin/CustomerList";
 export const dynamic = "force-dynamic";
 
 export default async function CustomersPage() {
-  const customers = await listCustomers();
+  const { items: customers, nextCursor } = await listCustomers();
 
   return (
     <>
@@ -35,7 +35,7 @@ export default async function CustomersPage() {
             </div>
           </div>
         ) : (
-          <CustomerList customers={customers} />
+          <CustomerList customers={customers} initialCursor={nextCursor} />
         )}
       </main>
     </>

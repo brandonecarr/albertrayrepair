@@ -32,9 +32,13 @@ export async function PATCH(
     body.status as "confirmed" | "declined" | "cancelled"
   );
   if (!ok) {
+    // No row changed — already decided, gone, or the slot is now taken.
     return NextResponse.json(
-      { error: "Could not update booking. Is the database configured?" },
-      { status: 503 }
+      {
+        error:
+          "That booking can no longer be changed — it may have already been updated or the slot was taken. Refresh and try again.",
+      },
+      { status: 409 }
     );
   }
   return NextResponse.json({ ok: true });

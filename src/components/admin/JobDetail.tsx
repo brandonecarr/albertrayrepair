@@ -7,6 +7,7 @@ import type { AdminJob, AdminJobNote } from "@/lib/jobs";
 import type { AdminMaterial } from "@/lib/materials";
 import type { JobStatus, MaterialPurchaser } from "@/lib/db/schema";
 import { startOfWeekIso } from "@/lib/date-utils";
+import { dollarsToCentsStrict } from "@/lib/money";
 import MaterialAutocomplete from "./MaterialAutocomplete";
 
 const STATUSES: JobStatus[] = [
@@ -109,6 +110,7 @@ export default function JobDetail({
   const [matPrice, setMatPrice] = useState("");
   const [matPurchaser, setMatPurchaser] = useState<MaterialPurchaser>("company");
   const [addingMat, setAddingMat] = useState(false);
+  const [matError, setMatError] = useState<string | null>(null);
 
   const companyCents = materials
     .filter((m) => m.purchaser === "company")
@@ -121,6 +123,7 @@ export default function JobDetail({
     e.preventDefault();
     if (!matName.trim()) return;
     setAddingMat(true);
+    setMatError(null);
     try {
       const res = await fetch(`/api/admin/jobs/${job.id}/materials`, {
         method: "POST",
@@ -136,7 +139,11 @@ export default function JobDetail({
         setMaterials((m) => [data.material, ...m]);
         setMatName("");
         setMatPrice("");
+      } else {
+        setMatError(data.error || "Couldn't add that material. Check the price and try again.");
       }
+    } catch {
+      setMatError("Couldn't add that material. Please try again.");
     } finally {
       setAddingMat(false);
     }
@@ -163,6 +170,7 @@ export default function JobDetail({
     notes: initial.notes ?? "",
   });
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   async function changeStatus(status: JobStatus) {
     const prev = job.status;
@@ -181,7 +189,15 @@ export default function JobDetail({
   }
 
   async function save() {
+    // Validate the money field client-side so a typo doesn't silently fail.
+    const trimmedAmount = form.amountDollars.trim();
+    const cents = trimmedAmount === "" ? null : dollarsToCentsStrict(trimmedAmount);
+    if (cents !== null && Number.isNaN(cents)) {
+      setSaveError("Enter a valid dollar amount (e.g. 1250 or 1,250.50).");
+      return;
+    }
     setSaving(true);
+    setSaveError(null);
     try {
       const res = await fetch(`/api/admin/jobs/${job.id}`, {
         method: "PATCH",
@@ -195,11 +211,15 @@ export default function JobDetail({
           notes: form.notes,
         }),
       });
-      if (!res.ok) throw new Error();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setSaveError(data.error || "Couldn't save the job. Please try again.");
+        return;
+      }
       setJob((j) => ({
         ...j,
         title: form.title.trim() || j.title,
-        amountCents: form.amountDollars ? Math.round(Number(form.amountDollars) * 100) : null,
+        amountCents: cents,
         scheduledDate: form.scheduledDate || null,
         scheduledTime: form.scheduledTime || null,
         address: form.address.trim() || null,
@@ -208,7 +228,7 @@ export default function JobDetail({
       setEditing(false);
       router.refresh();
     } catch {
-      // leave the editor open
+      setSaveError("Couldn't save the job. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -383,6 +403,11 @@ export default function JobDetail({
                 Cancel
               </button>
             </div>
+            {saveError && (
+              <p className="field-error" role="alert" style={{ marginTop: 10 }}>
+                {saveError}
+              </p>
+            )}
           </div>
         )}
       </section>
@@ -439,6 +464,11 @@ export default function JobDetail({
             {addingMat ? "Adding…" : "Add"}
           </button>
         </form>
+        {matError && (
+          <p className="field-error" role="alert" style={{ marginTop: 8 }}>
+            {matError}
+          </p>
+        )}
 
         {materials.length === 0 ? (
           <p className="custEmptyLine">No materials logged yet.</p>

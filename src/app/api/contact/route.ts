@@ -2,11 +2,14 @@ import { NextResponse } from "next/server";
 import { contactSchema } from "@/lib/validation";
 import { notifyNewContact } from "@/lib/notify";
 import { saveContactLead } from "@/lib/leads";
-import { rateLimit, clientIp } from "@/lib/rate-limit";
+import { rateLimit, clientIp, bodyTooLarge } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
+  if (bodyTooLarge(req)) {
+    return NextResponse.json({ error: "Request too large." }, { status: 413 });
+  }
   if (!rateLimit(`contact:${clientIp(req)}`)) {
     return NextResponse.json(
       { error: "Too many requests. Please try again in a minute." },

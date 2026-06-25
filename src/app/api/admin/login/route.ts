@@ -6,11 +6,14 @@ import {
   createSessionToken,
   sessionCookieOptions,
 } from "@/lib/auth";
-import { rateLimit, clientIp } from "@/lib/rate-limit";
+import { rateLimit, clientIp, bodyTooLarge } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
+  if (bodyTooLarge(req, 4_096)) {
+    return NextResponse.json({ error: "Request too large." }, { status: 413 });
+  }
   if (!isAuthConfigured) {
     return NextResponse.json(
       { error: "Admin is not configured. Set ADMIN_PASSWORD and AUTH_SECRET." },

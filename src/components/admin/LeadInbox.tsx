@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { AdminLead } from "@/lib/leads";
 import type { LeadStatus } from "@/lib/db/schema";
+import type { Cursor } from "@/lib/pagination";
 import { startOfWeekIso } from "@/lib/date-utils";
 import { PhoneIcon, MailIcon, CalendarIcon } from "@/components/Icons";
 
@@ -51,19 +52,44 @@ function StatusChip({ status }: { status: LeadStatus }) {
   );
 }
 
-export default function LeadInbox({ initialLeads }: { initialLeads: AdminLead[] }) {
+export default function LeadInbox({
+  initialLeads,
+  initialCursor = null,
+}: {
+  initialLeads: AdminLead[];
+  initialCursor?: Cursor | null;
+}) {
   const router = useRouter();
   const [leads, setLeads] = useState<AdminLead[]>(initialLeads);
+  const [cursor, setCursor] = useState<Cursor | null>(initialCursor);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  async function loadMore() {
+    if (!cursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const params = new URLSearchParams({ beforeAt: cursor.createdAt, beforeId: cursor.id });
+      const res = await fetch(`/api/admin/leads/list?${params}`);
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && Array.isArray(data.items)) {
+        setLeads((prev) => [...prev, ...data.items]);
+        setCursor(data.nextCursor ?? null);
+      }
+    } finally {
+      setLoadingMore(false);
+    }
+  }
   const [filter, setFilter] = useState<Filter>("all");
   const [selectedId, setSelectedId] = useState<string | null>(
     initialLeads[0]?.id ?? null
   );
   const [savingId, setSavingId] = useState<string | null>(null);
-  const [jobState, setJobState] = useState<Record<string, "creating" | "done">>({});
+  type JobState = { status: "creating" } | { status: "done"; jobId: string | null };
+  const [jobState, setJobState] = useState<Record<string, JobState>>({});
   const [jobError, setJobError] = useState<{ id: string; msg: string } | null>(null);
 
   async function createJob(lead: AdminLead) {
-    setJobState((s) => ({ ...s, [lead.id]: "creating" }));
+    setJobState((s) => ({ ...s, [lead.id]: { status: "creating" } }));
     setJobError(null);
     try {
       const res = await fetch(`/api/admin/leads/${lead.id}/job`, { method: "POST" });
@@ -77,7 +103,10 @@ export default function LeadInbox({ initialLeads }: { initialLeads: AdminLead[] 
         // Land on the calendar week so the new appointment is visible.
         router.push(`/admin/calendar?week=${startOfWeekIso(data.date)}`);
       } else {
-        setJobState((s) => ({ ...s, [lead.id]: "done" }));
+        setJobState((s) => ({ ...s, [lead.id]: { status: "done", jobId: data.jobId ?? null } }));
+        // Re-fetch so the server-rendered lead list reflects the "won" status
+        // and the create-job control can't reappear and spawn a duplicate.
+        router.refresh();
       }
     } catch (err) {
       setJobState((s) => {
@@ -213,6 +242,15 @@ export default function LeadInbox({ initialLeads }: { initialLeads: AdminLead[] 
               );
             })
           )}
+          {cursor && (
+            <button
+              className="loadMoreBtn"
+              onClick={loadMore}
+              disabled={loadingMore}
+            >
+              {loadingMore ? "Loading…" : "Load older leads"}
+            </button>
+          )}
         </div>
 
         {/* DETAIL */}
@@ -261,27 +299,41 @@ export default function LeadInbox({ initialLeads }: { initialLeads: AdminLead[] 
               </div>
 
               <div className="adminConvert">
-                {jobState[selected.id] === "done" ? (
-                  <p className="adminConvertDone">
-                    ✓ Job created.{" "}
-                    <Link href="/admin/jobs" className="adminCustLink" style={{ marginTop: 0 }}>
-                      View on Jobs board →
-                    </Link>
-                  </p>
-                ) : (
-                  <button
-                    className="adminConvertBtn"
-                    onClick={() => createJob(selected)}
-                    disabled={jobState[selected.id] === "creating"}
-                  >
-                    <CalendarIcon className="adminActionIcon" />
-                    {jobState[selected.id] === "creating"
-                      ? "Creating…"
-                      : selected.preferredDate
-                        ? "Create job & add to calendar"
-                        : "Create job"}
-                  </button>
-                )}
+                {(() => {
+                  const js = jobState[selected.id];
+                  const done = js?.status === "done";
+                  const doneJobId = js?.status === "done" ? js.jobId : null;
+                  // A lead already "won" was converted in a prior session — treat
+                  // it as done so the button can't reappear and spawn a duplicate.
+                  if (done || selected.status === "won") {
+                    return (
+                      <p className="adminConvertDone">
+                        ✓ Job created.{" "}
+                        <Link
+                          href={doneJobId ? `/admin/jobs/${doneJobId}` : "/admin/jobs"}
+                          className="adminCustLink"
+                          style={{ marginTop: 0 }}
+                        >
+                          {doneJobId ? "View job →" : "View on Jobs board →"}
+                        </Link>
+                      </p>
+                    );
+                  }
+                  return (
+                    <button
+                      className="adminConvertBtn"
+                      onClick={() => createJob(selected)}
+                      disabled={js?.status === "creating"}
+                    >
+                      <CalendarIcon className="adminActionIcon" />
+                      {js?.status === "creating"
+                        ? "Creating…"
+                        : selected.preferredDate
+                          ? "Create job & add to calendar"
+                          : "Create job"}
+                    </button>
+                  );
+                })()}
                 {jobError?.id === selected.id && (
                   <p className="field-error" style={{ marginTop: 8 }}>{jobError.msg}</p>
                 )}
