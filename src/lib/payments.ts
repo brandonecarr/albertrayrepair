@@ -11,10 +11,11 @@
  * stripe_session_id). Lifetime spend = Σ amountCents where status='succeeded'.
  */
 import Stripe from "stripe";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db, isDbConfigured } from "./db";
 import {
   payments,
+  jobs,
   type PaymentMethod,
   type PaymentStatus,
 } from "./db/schema";
@@ -223,6 +224,11 @@ export async function listPaymentsForCustomer(
 }
 
 /** Lifetime spend (cents) — sum of succeeded payments. */
+/**
+ * Lifetime spend = total value of the customer's finished work: the sum of
+ * `amountCents` for jobs that have been marked completed or invoiced. Updates
+ * the moment a job is moved to completed.
+ */
 export async function getCustomerLifetimeSpendCents(
   customerId: string
 ): Promise<number> {
@@ -230,18 +236,18 @@ export async function getCustomerLifetimeSpendCents(
   try {
     const rows = await db
       .select({
-        total: sql<number>`coalesce(sum(${payments.amountCents}), 0)`,
+        total: sql<number>`coalesce(sum(${jobs.amountCents}), 0)`,
       })
-      .from(payments)
+      .from(jobs)
       .where(
         and(
-          eq(payments.customerId, customerId),
-          eq(payments.status, "succeeded")
+          eq(jobs.customerId, customerId),
+          inArray(jobs.status, ["completed", "invoiced"])
         )
       );
     return Number(rows[0]?.total ?? 0);
   } catch (err) {
-    console.error("[payments] failed to compute lifetime spend:", err);
+    console.error("[db] failed to compute lifetime spend:", err);
     return 0;
   }
 }

@@ -69,6 +69,9 @@ export default function CustomerDetail({
 }) {
   const router = useRouter();
   const [jobs, setJobs] = useState<AdminJob[]>(initialJobs);
+  const completedJobCount = jobs.filter(
+    (j) => j.status === "completed" || j.status === "invoiced"
+  ).length;
 
   // ─── Editable customer card ────────────────────────────────────────────
   const [editing, setEditing] = useState(false);
@@ -159,6 +162,8 @@ export default function CustomerDetail({
         body: JSON.stringify({ status }),
       });
       if (!res.ok) throw new Error();
+      // Re-fetch so lifetime spend (server-computed) reflects the new status.
+      router.refresh();
     } catch {
       setJobs(prev); // rollback
     }
@@ -188,8 +193,22 @@ export default function CustomerDetail({
         </div>
 
         <div className="custSpend">
-          <span className="custSpendLabel">Lifetime spend</span>
-          <span className="custSpendNum">{money(lifetimeSpentCents)}</span>
+          <span className="custSpendIcon" aria-hidden>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2.5" y="6" width="19" height="12" rx="2" />
+              <circle cx="12" cy="12" r="2.4" />
+              <path d="M6 9.5v5M18 9.5v5" />
+            </svg>
+          </span>
+          <div className="custSpendMain">
+            <span className="custSpendLabel">Lifetime spend</span>
+            <span className="custSpendNum">{money(lifetimeSpentCents)}</span>
+          </div>
+          <span className="custSpendNote">
+            {completedJobCount > 0
+              ? `Across ${completedJobCount} completed job${completedJobCount === 1 ? "" : "s"}`
+              : "Updates when a job is marked complete"}
+          </span>
         </div>
 
         {merging && (
