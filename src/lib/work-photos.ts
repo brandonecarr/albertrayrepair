@@ -10,7 +10,12 @@ import { asc, desc, eq, sql } from "drizzle-orm";
 import { db, isDbConfigured } from "./db";
 import { workPhotos } from "./db/schema";
 
-export const hasBlobStorage = Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+// Blob is usable via either a static read/write token OR Vercel's newer
+// token-less OIDC flow (BLOB_STORE_ID + an auto-injected VERCEL_OIDC_TOKEN at
+// runtime). Accept both so the uploader enables under either setup.
+export const hasBlobStorage = Boolean(
+  process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID
+);
 
 export type AdminWorkPhoto = {
   id: string;
@@ -64,7 +69,7 @@ export async function addWorkPhoto(
     return {
       ok: false,
       reason: "blob_unconfigured",
-      message: "Photo storage isn't set up yet. Connect a Vercel Blob store and set BLOB_READ_WRITE_TOKEN.",
+      message: "Photo storage isn't set up yet. Connect a Vercel Blob store to this project, then redeploy.",
     };
   }
   if (!ALLOWED.includes(file.type)) {

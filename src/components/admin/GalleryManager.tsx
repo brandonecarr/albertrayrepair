@@ -104,10 +104,10 @@ export default function GalleryManager({
     <div className="galMgr">
       {!blobReady && (
         <p className="adminNotice" style={{ marginTop: 0 }}>
-          Photo uploads aren&rsquo;t enabled yet. Create a{" "}
-          <strong>Vercel Blob</strong> store and set{" "}
-          <code>BLOB_READ_WRITE_TOKEN</code>, then redeploy. You can still edit,
-          reorder, and remove existing photos.
+          Photo uploads aren&rsquo;t enabled yet. Connect a{" "}
+          <strong>Vercel Blob</strong> store to this project (Storage →
+          Connect), then redeploy. You can still edit, reorder, and remove
+          existing photos.
         </p>
       )}
 
