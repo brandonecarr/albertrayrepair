@@ -28,14 +28,14 @@
 }
 
 .logo {
-  height: 108px;
+  height: 96px;
   width: auto;
 }
 
 .nav {
   display: flex;
   align-items: center;
-  gap: 30px;
+  gap: 22px;
   margin-left: auto;
   margin-right: 8px;
 }
@@ -43,9 +43,10 @@
 .link {
   font-family: var(--font-condensed);
   font-weight: 600;
-  font-size: 16px;
-  letter-spacing: 0.1em;
+  font-size: 15px;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
+  white-space: nowrap;
   color: var(--ink);
   position: relative;
   padding-block: 4px;
@@ -74,7 +75,7 @@
 .actions {
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: 14px;
 }
 
 .phone {
@@ -83,8 +84,9 @@
   gap: 8px;
   font-family: var(--font-condensed);
   font-weight: 700;
-  font-size: 16px;
+  font-size: 15px;
   letter-spacing: 0.04em;
+  white-space: nowrap;
   color: var(--ink);
   transition: color 0.15s ease;
 }
@@ -163,7 +165,7 @@
   margin-top: 14px;
 }
 
-@media (max-width: 880px) {
+@media (max-width: 1024px) {
   .nav {
     display: none;
   }
