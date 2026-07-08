@@ -17,7 +17,7 @@ const csp = [
   `base-uri 'self'`,
   `object-src 'none'`,
   `frame-ancestors 'self'`,
-  `img-src 'self' data: blob: https://*.tile.openstreetmap.org https://*.openstreetmap.org`,
+  `img-src 'self' data: blob: https://*.tile.openstreetmap.org https://*.openstreetmap.org https://*.public.blob.vercel-storage.com`,
   `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
   `style-src 'self' 'unsafe-inline'`,
   `font-src 'self' data:`,
@@ -42,6 +42,9 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   images: {
     formats: ["image/avif", "image/webp"],
+    remotePatterns: [
+      { protocol: "https", hostname: "*.public.blob.vercel-storage.com" },
+    ],
   },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];

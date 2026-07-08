@@ -57,6 +57,13 @@
       "when": 1782395794967,
       "tag": "0007_bouncy_echo",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1783537407593,
+      "tag": "0008_high_marvel_boy",
+      "breakpoints": true
     }
   ]
 }

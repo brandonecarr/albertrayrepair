@@ -1,4 +1,5 @@
 import SiteHeader from "@/components/SiteHeader";
+import Work, { getGalleryImages } from "@/components/Work";
 import Hero from "@/components/Hero";
 import TrustBar from "@/components/TrustBar";
 import Services from "@/components/Services";
@@ -10,14 +11,20 @@ import Booking from "@/components/Booking";
 import Contact from "@/components/Contact";
 import SiteFooter from "@/components/SiteFooter";
 
-export default function Home() {
+// Static + hourly refresh; photo add/remove also revalidates "/" on demand so
+// gallery changes show up immediately.
+export const revalidate = 3600;
+
+export default async function Home() {
+  const galleryImages = await getGalleryImages();
   return (
     <>
-      <SiteHeader />
+      <SiteHeader showWork={galleryImages.length > 0} />
       <main>
         <Hero />
         <TrustBar />
         <Services />
+        <Work images={galleryImages} />
         <Process />
         <About />
         <Faith />

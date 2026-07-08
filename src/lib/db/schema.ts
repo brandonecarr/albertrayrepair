@@ -437,3 +437,26 @@ export const jobMaterials = pgTable(
 export type JobMaterial = typeof jobMaterials.$inferSelect;
 export type NewJobMaterial = typeof jobMaterials.$inferInsert;
 export type MaterialPurchaser = (typeof materialPurchaser.enumValues)[number];
+
+/**
+ * Work photos — the "Our Work" gallery on the public site, managed from the
+ * admin. Files live in blob storage (Vercel Blob); this table holds the public
+ * URL, the blob pathname (needed to delete the file), an optional caption, and
+ * a manual sort order. The gallery also merges any images committed to
+ * public/brand/work, so both a folder drop-in and admin uploads work.
+ */
+export const workPhotos = pgTable(
+  "work_photos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    url: text("url").notNull(), // public blob URL
+    pathname: text("pathname").notNull(), // blob pathname, for deletion
+    caption: text("caption"),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("work_photos_order_idx").on(t.sortOrder, t.createdAt)]
+);
+
+export type WorkPhoto = typeof workPhotos.$inferSelect;
+export type NewWorkPhoto = typeof workPhotos.$inferInsert;

@@ -6,16 +6,21 @@ import { site } from "@/lib/site-config";
 import { PhoneIcon } from "./Icons";
 import styles from "./SiteHeader.module.css";
 
-const navLinks = [
+const baseNavLinks = [
   { href: "#services", label: "Services" },
+  { href: "#work", label: "Our Work" },
   { href: "#process", label: "How It Works" },
   { href: "#reviews", label: "Reviews" },
   { href: "#contact", label: "Contact" },
 ];
 
-export default function SiteHeader() {
+export default function SiteHeader({ showWork = false }: { showWork?: boolean }) {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
+  // Only surface the "Our Work" link when the gallery actually has photos.
+  const navLinks = showWork
+    ? baseNavLinks
+    : baseNavLinks.filter((l) => l.href !== "#work");
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24);

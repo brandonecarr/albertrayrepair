@@ -2110,6 +2110,98 @@
   cursor: pointer;
 }
 
+/* ---------- Work gallery manager ---------- */
+.galMgr {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.galUpload {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.galUpload .adminInput {
+  flex: 1;
+  min-width: 220px;
+}
+.galGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+  margin-top: 6px;
+}
+.galCard {
+  background: var(--ink-2);
+  border: 1px solid rgba(195, 203, 213, 0.14);
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.galThumb {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  display: block;
+  background: var(--ink-3);
+}
+.galCardBody {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.galCaption {
+  font-size: 13px;
+  padding: 8px 10px;
+}
+.galActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.galMove {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid rgba(195, 203, 213, 0.2);
+  background: var(--ink-3);
+  color: var(--bone);
+  font-size: 15px;
+  cursor: pointer;
+}
+.galMove:hover:not(:disabled) {
+  border-color: var(--orange);
+  color: var(--orange);
+}
+.galMove:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.galDelete {
+  margin-left: auto;
+  font-family: var(--font-condensed);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #ff8a8a;
+  background: transparent;
+  border: 1px solid rgba(255, 138, 138, 0.35);
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+.galDelete:hover:not(:disabled) {
+  background: rgba(255, 138, 138, 0.14);
+}
+.galDelete:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 /* "Load more" pagination control shared by inbox / job board / roster */
 .loadMoreBtn {
   display: block;
