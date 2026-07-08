@@ -101,7 +101,10 @@ export async function addWorkPhoto(
     return { ok: true, photo: toAdmin(inserted[0]!) };
   } catch (err) {
     console.error("[work-photos] upload failed:", err);
-    return { ok: false, reason: "error", message: "Upload failed. Please try again." };
+    // Surface the real reason to the admin (this endpoint is auth-gated; the
+    // underlying blob/storage message is safe and makes setup issues obvious).
+    const detail = err instanceof Error ? err.message : "Upload failed.";
+    return { ok: false, reason: "error", message: detail };
   }
 }
 
