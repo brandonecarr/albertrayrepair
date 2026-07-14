@@ -733,6 +733,113 @@
   font-size: 17px;
   color: #67d391;
 }
+
+/* Send popup channels */
+.sendChannels {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sendChannel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid rgba(195, 203, 213, 0.2);
+  border-radius: 10px;
+  cursor: pointer;
+}
+.sendChannel input {
+  accent-color: var(--orange);
+}
+.sendChannelOn {
+  border-color: var(--orange);
+  background: rgba(242, 106, 31, 0.08);
+}
+.sendChannelOff {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.sendChannelLabel {
+  font-family: var(--font-condensed);
+  font-weight: 700;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--bone);
+  width: 48px;
+}
+.sendChannelTo {
+  font-size: 12.5px;
+  color: var(--steel);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Invoice line-item editor */
+.invEditor {
+  display: flex;
+  flex-direction: column;
+}
+.invEditHead {
+  display: flex;
+  gap: 8px;
+  padding: 0 4px 6px;
+  font-family: var(--font-condensed);
+  font-weight: 700;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--steel);
+}
+.invEditColDesc {
+  flex: 1;
+}
+.invEditColQty {
+  width: 60px;
+}
+.invEditColUnit {
+  width: 90px;
+}
+.invEditRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.invEditRow .adminInput {
+  padding: 9px 10px;
+}
+.invEditQty {
+  width: 60px;
+  flex: 0 0 auto;
+}
+.invEditUnit {
+  width: 90px;
+  flex: 0 0 auto;
+}
+.invEditDel {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 138, 138, 0.35);
+  background: transparent;
+  color: #ff8a8a;
+  cursor: pointer;
+}
+.invEditDel:hover {
+  background: rgba(255, 138, 138, 0.14);
+}
+.invEditTotal {
+  margin: 14px 0 0;
+  text-align: right;
+  font-family: var(--font-condensed);
+  font-weight: 700;
+  font-size: 16px;
+  color: #67d391;
+}
 .matTag {
   font-family: var(--font-condensed);
   font-weight: 700;

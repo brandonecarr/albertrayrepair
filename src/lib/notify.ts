@@ -24,6 +24,57 @@ const hasTwilio = Boolean(
     env.TWILIO_FROM &&
     env.NOTIFY_PHONE
 );
+// Texting a CUSTOMER only needs the sender creds (not Albert's NOTIFY_PHONE).
+const hasTwilioSender = Boolean(
+  env.TWILIO_ACCOUNT_SID && env.TWILIO_AUTH_TOKEN && env.TWILIO_FROM
+);
+
+export type SendResult = { ok: true } | { ok: false; error: string };
+
+/** Email a customer with a PDF attachment (used for invoices). */
+export async function sendEmailWithAttachment(
+  to: string,
+  subject: string,
+  text: string,
+  pdf: Buffer,
+  filename: string
+): Promise<SendResult> {
+  if (!hasResendKey) {
+    return { ok: false, error: "Email isn't set up yet (add RESEND_API_KEY)." };
+  }
+  try {
+    const { Resend } = await import("resend");
+    const resend = new Resend(env.RESEND_API_KEY);
+    await resend.emails.send({
+      from: env.RESEND_FROM || "Albert Ray's Repairs & Restoration <onboarding@resend.dev>",
+      to,
+      subject,
+      text,
+      replyTo: env.NOTIFY_REPLY_TO || env.NOTIFY_EMAIL || undefined,
+      attachments: [{ filename, content: pdf.toString("base64") }],
+    });
+    return { ok: true };
+  } catch (err) {
+    console.error("[notify] invoice email failed:", err);
+    return { ok: false, error: "Email failed to send." };
+  }
+}
+
+/** Text a customer (used for invoice links). */
+export async function sendSmsTo(to: string, body: string): Promise<SendResult> {
+  if (!hasTwilioSender) {
+    return { ok: false, error: "Texting isn't set up yet (add your Twilio credentials)." };
+  }
+  try {
+    const twilio = (await import("twilio")).default;
+    const client = twilio(env.TWILIO_ACCOUNT_SID, env.TWILIO_AUTH_TOKEN);
+    await client.messages.create({ from: env.TWILIO_FROM, to, body });
+    return { ok: true };
+  } catch (err) {
+    console.error("[notify] invoice SMS failed:", err);
+    return { ok: false, error: "Text failed to send." };
+  }
+}
 
 async function sendEmail(subject: string, lines: string[]) {
   if (!hasResend) {

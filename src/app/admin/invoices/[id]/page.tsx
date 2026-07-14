@@ -51,6 +51,8 @@ export default async function InvoicePage(ctx: { params: Promise<{ id: string }>
         <InvoiceDetail
           invoice={invoice}
           customerName={customer?.name ?? null}
+          customerEmail={customer?.email ?? null}
+          customerPhone={customer?.phone ?? null}
           jobTitle={job?.title ?? null}
         />
       </main>

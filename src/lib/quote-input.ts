@@ -16,8 +16,9 @@ export function parseLineItems(raw: unknown): QuoteLineInput[] | null {
     if (!description) return null;
     const quantity = parseMoney(r.quantity);
     if (!Number.isFinite(quantity) || quantity <= 0) return null;
+    // Negative unit amounts are allowed (e.g. a discount line on an invoice).
     const unit = parseMoney(r.unitDollars);
-    if (!Number.isFinite(unit) || unit < 0) return null;
+    if (!Number.isFinite(unit)) return null;
     out.push({ description, quantity, unitAmountCents: Math.round(unit * 100) });
   }
   return out;
