@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { AdminJob, AdminJobNote } from "@/lib/jobs";
 import type { AdminMaterial } from "@/lib/materials";
+import type { AdminQuote } from "@/lib/quotes";
 import type { JobStatus, MaterialPurchaser } from "@/lib/db/schema";
 import { startOfWeekIso } from "@/lib/date-utils";
 import { dollarsToCentsStrict } from "@/lib/money";
@@ -61,10 +62,12 @@ export default function JobDetail({
   job: initial,
   initialNotes,
   initialMaterials,
+  initialQuotes,
 }: {
   job: AdminJob;
   initialNotes: AdminJobNote[];
   initialMaterials: AdminMaterial[];
+  initialQuotes: AdminQuote[];
 }) {
   const router = useRouter();
   const [job, setJob] = useState<AdminJob>(initial);
@@ -108,14 +111,16 @@ export default function JobDetail({
     }
   }
 
-  // Materials
+  // Materials (add/edit happen in a modal)
   const [materials, setMaterials] = useState<AdminMaterial[]>(initialMaterials);
+  const [matModalOpen, setMatModalOpen] = useState(false);
+  const [matEditingId, setMatEditingId] = useState<string | null>(null);
   const [matName, setMatName] = useState("");
   const [matPrice, setMatPrice] = useState("");
   const [matPurchaser, setMatPurchaser] = useState<MaterialPurchaser>("company");
   const [matStore, setMatStore] = useState("");
   const [matStoreCustom, setMatStoreCustom] = useState("");
-  const [addingMat, setAddingMat] = useState(false);
+  const [savingMat, setSavingMat] = useState(false);
   const [matError, setMatError] = useState<string | null>(null);
 
   const companyCents = materials
@@ -125,16 +130,52 @@ export default function JobDetail({
     .filter((m) => m.purchaser === "client")
     .reduce((s, m) => s + m.priceCents, 0);
 
-  async function addMaterial(e: React.FormEvent) {
+  function setStoreFromValue(store: string | null) {
+    if (!store) {
+      setMatStore("");
+      setMatStoreCustom("");
+    } else if (MATERIAL_STORES.includes(store)) {
+      setMatStore(store);
+      setMatStoreCustom("");
+    } else {
+      setMatStore(STORE_OTHER);
+      setMatStoreCustom(store);
+    }
+  }
+
+  function openAddMaterial() {
+    setMatEditingId(null);
+    setMatName("");
+    setMatPrice("");
+    setMatPurchaser("company");
+    setMatStore("");
+    setMatStoreCustom("");
+    setMatError(null);
+    setMatModalOpen(true);
+  }
+
+  function openEditMaterial(m: AdminMaterial) {
+    setMatEditingId(m.id);
+    setMatName(m.name);
+    setMatPrice(m.priceCents ? (m.priceCents / 100).toString() : "");
+    setMatPurchaser(m.purchaser);
+    setStoreFromValue(m.store);
+    setMatError(null);
+    setMatModalOpen(true);
+  }
+
+  async function saveMaterial(e: React.FormEvent) {
     e.preventDefault();
     if (!matName.trim()) return;
-    setAddingMat(true);
+    setSavingMat(true);
     setMatError(null);
     try {
-      const store =
-        matStore === STORE_OTHER ? matStoreCustom.trim() : matStore;
-      const res = await fetch(`/api/admin/jobs/${job.id}/materials`, {
-        method: "POST",
+      const store = matStore === STORE_OTHER ? matStoreCustom.trim() : matStore;
+      const url = matEditingId
+        ? `/api/admin/jobs/${job.id}/materials/${matEditingId}`
+        : `/api/admin/jobs/${job.id}/materials`;
+      const res = await fetch(url, {
+        method: matEditingId ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: matName,
@@ -145,18 +186,19 @@ export default function JobDetail({
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.material) {
-        setMaterials((m) => [data.material, ...m]);
-        setMatName("");
-        setMatPrice("");
-        setMatStore("");
-        setMatStoreCustom("");
+        setMaterials((m) =>
+          matEditingId
+            ? m.map((x) => (x.id === matEditingId ? data.material : x))
+            : [data.material, ...m]
+        );
+        setMatModalOpen(false);
       } else {
-        setMatError(data.error || "Couldn't add that material. Check the price and try again.");
+        setMatError(data.error || "Couldn't save that material. Check the price and try again.");
       }
     } catch {
-      setMatError("Couldn't add that material. Please try again.");
+      setMatError("Couldn't save that material. Please try again.");
     } finally {
-      setAddingMat(false);
+      setSavingMat(false);
     }
   }
 
@@ -172,9 +214,34 @@ export default function JobDetail({
       setMaterials(prev); // rollback
     }
   }
+
+  // Quotes / invoices for this job
+  const [quotes, setQuotes] = useState<AdminQuote[]>(initialQuotes);
+  const [creatingInvoice, setCreatingInvoice] = useState(false);
+  const [invoiceError, setInvoiceError] = useState<string | null>(null);
+
+  async function createInvoice() {
+    setCreatingInvoice(true);
+    setInvoiceError(null);
+    try {
+      const res = await fetch(`/api/admin/jobs/${job.id}/invoice`, { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.quote) {
+        setQuotes((q) => [data.quote, ...q]);
+        router.refresh(); // keep the customer page's quotes in sync
+      } else {
+        setInvoiceError(data.error || "Couldn't create the invoice. Please try again.");
+      }
+    } catch {
+      setInvoiceError("Couldn't create the invoice. Please try again.");
+    } finally {
+      setCreatingInvoice(false);
+    }
+  }
   const [form, setForm] = useState({
     title: initial.title,
     amountDollars: initial.amountCents != null ? (initial.amountCents / 100).toString() : "",
+    discountDollars: initial.discountCents != null ? (initial.discountCents / 100).toString() : "",
     scheduledDate: initial.scheduledDate ?? "",
     scheduledTime: initial.scheduledTime ?? "",
     address: initial.address ?? "",
@@ -200,11 +267,17 @@ export default function JobDetail({
   }
 
   async function save() {
-    // Validate the money field client-side so a typo doesn't silently fail.
+    // Validate the money fields client-side so a typo doesn't silently fail.
     const trimmedAmount = form.amountDollars.trim();
     const cents = trimmedAmount === "" ? null : dollarsToCentsStrict(trimmedAmount);
     if (cents !== null && Number.isNaN(cents)) {
-      setSaveError("Enter a valid dollar amount (e.g. 1250 or 1,250.50).");
+      setSaveError("Enter a valid amount (e.g. 1250 or 1,250.50).");
+      return;
+    }
+    const trimmedDiscount = form.discountDollars.trim();
+    const discountCents = trimmedDiscount === "" ? null : dollarsToCentsStrict(trimmedDiscount);
+    if (discountCents !== null && Number.isNaN(discountCents)) {
+      setSaveError("Enter a valid discount amount.");
       return;
     }
     setSaving(true);
@@ -216,6 +289,7 @@ export default function JobDetail({
         body: JSON.stringify({
           title: form.title,
           amountDollars: form.amountDollars,
+          discountDollars: form.discountDollars,
           scheduledDate: form.scheduledDate,
           scheduledTime: form.scheduledTime,
           address: form.address,
@@ -231,6 +305,7 @@ export default function JobDetail({
         ...j,
         title: form.title.trim() || j.title,
         amountCents: cents,
+        discountCents,
         scheduledDate: form.scheduledDate || null,
         scheduledTime: form.scheduledTime || null,
         address: form.address.trim() || null,
@@ -328,6 +403,9 @@ export default function JobDetail({
                 }
               />
               <Field label="Status" value={LABELS[job.status]} />
+              {job.discountCents ? (
+                <Field label="Discount" value={`−${money(job.discountCents)}`} />
+              ) : null}
               <Field label="Address" value={job.address} full />
               {job.notes && (
                 <div className="adminFieldFull">
@@ -346,15 +424,26 @@ export default function JobDetail({
                 onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
               />
             </EditRow>
-            <EditRow label="Amount ($)">
-              <input
-                className="adminInput"
-                inputMode="decimal"
-                placeholder="0.00"
-                value={form.amountDollars}
-                onChange={(e) => setForm((f) => ({ ...f, amountDollars: e.target.value }))}
-              />
-            </EditRow>
+            <div className="jobFormRow">
+              <EditRow label="Amount ($)">
+                <input
+                  className="adminInput"
+                  inputMode="decimal"
+                  placeholder="0.00"
+                  value={form.amountDollars}
+                  onChange={(e) => setForm((f) => ({ ...f, amountDollars: e.target.value }))}
+                />
+              </EditRow>
+              <EditRow label="Discount ($)">
+                <input
+                  className="adminInput"
+                  inputMode="decimal"
+                  placeholder="0.00"
+                  value={form.discountDollars}
+                  onChange={(e) => setForm((f) => ({ ...f, discountDollars: e.target.value }))}
+                />
+              </EditRow>
+            </div>
             <div className="jobFormRow">
               <EditRow label="Date">
                 <input
@@ -404,6 +493,7 @@ export default function JobDetail({
                   setForm({
                     title: job.title,
                     amountDollars: job.amountCents != null ? (job.amountCents / 100).toString() : "",
+                    discountDollars: job.discountCents != null ? (job.discountCents / 100).toString() : "",
                     scheduledDate: job.scheduledDate ?? "",
                     scheduledTime: job.scheduledTime ?? "",
                     address: job.address ?? "",
@@ -428,86 +518,16 @@ export default function JobDetail({
           <h2 className="custPanelTitle">
             Materials <span className="custPanelCount">{materials.length}</span>
           </h2>
-          {(companyCents > 0 || clientCents > 0) && (
-            <div className="matTotals">
-              <span className="matTotalCo">Company {money(companyCents)}</span>
-              <span className="matTotalCl">Client {money(clientCents)}</span>
-            </div>
-          )}
+          <button className="adminTab" onClick={openAddMaterial}>
+            + Add material
+          </button>
         </div>
 
-        <form className="matAdd" onSubmit={addMaterial}>
-          <div className="matNameField">
-            <MaterialAutocomplete
-              value={matName}
-              onChangeName={setMatName}
-              onPick={(s) => {
-                setMatName(s.name);
-                setMatPrice((s.priceCents / 100).toString());
-              }}
-              placeholder="Material — e.g. Drywall screws"
-            />
+        {(companyCents > 0 || clientCents > 0) && (
+          <div className="matTotals" style={{ marginBottom: 12 }}>
+            <span className="matTotalCo">Company {money(companyCents)}</span>
+            <span className="matTotalCl">Client {money(clientCents)}</span>
           </div>
-          <span className="matPriceWrap">
-            <span className="matPricePrefix">$</span>
-            <input
-              className="adminInput matPriceInput"
-              inputMode="decimal"
-              placeholder="0.00"
-              value={matPrice}
-              onChange={(e) => setMatPrice(e.target.value)}
-            />
-          </span>
-          <select
-            className="matPurchaser"
-            value={matPurchaser}
-            onChange={(e) => setMatPurchaser(e.target.value as MaterialPurchaser)}
-            aria-label="Who purchased"
-          >
-            <option value="company">Company purchased</option>
-            <option value="client">Client purchased</option>
-          </select>
-          <select
-            className="matPurchaser"
-            value={matStore}
-            onChange={(e) => setMatStore(e.target.value)}
-            aria-label="Where purchased"
-          >
-            <option value="">Store (optional)</option>
-            {MATERIAL_STORES.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-            <option value={STORE_OTHER}>Other…</option>
-          </select>
-          {matStore === STORE_OTHER && (
-            <input
-              className="adminInput"
-              style={{ flex: "1 1 160px", minWidth: 140 }}
-              placeholder="Where was it purchased?"
-              value={matStoreCustom}
-              onChange={(e) => setMatStoreCustom(e.target.value)}
-              aria-label="Custom store name"
-              autoFocus
-            />
-          )}
-          <button
-            className="adminLoginBtn"
-            style={{ marginTop: 0, width: "auto", padding: "12px 22px" }}
-            disabled={
-              addingMat ||
-              !matName.trim() ||
-              (matStore === STORE_OTHER && !matStoreCustom.trim())
-            }
-          >
-            {addingMat ? "Adding…" : "Add"}
-          </button>
-        </form>
-        {matError && (
-          <p className="field-error" role="alert" style={{ marginTop: 8 }}>
-            {matError}
-          </p>
         )}
 
         {materials.length === 0 ? (
@@ -522,6 +542,9 @@ export default function JobDetail({
                 <span className={`matTag mat-${m.purchaser}`}>
                   {m.purchaser === "company" ? "Company" : "Client"}
                 </span>
+                <button type="button" className="matEditBtn" onClick={() => openEditMaterial(m)}>
+                  Edit
+                </button>
                 <button
                   type="button"
                   className="jobNoteDel"
@@ -533,6 +556,168 @@ export default function JobDetail({
             ))}
           </ul>
         )}
+
+        {matModalOpen && (
+          <div
+            className="jdModalOverlay"
+            onClick={() => !savingMat && setMatModalOpen(false)}
+            role="dialog"
+            aria-modal="true"
+          >
+            <div className="jdModalCard" onClick={(e) => e.stopPropagation()}>
+              <div className="jdModalHead">
+                <h3 className="jdModalTitle">
+                  {matEditingId ? "Edit material" : "Add material"}
+                </h3>
+                <button
+                  type="button"
+                  className="jdModalClose"
+                  onClick={() => setMatModalOpen(false)}
+                  aria-label="Close"
+                >
+                  ✕
+                </button>
+              </div>
+              <form className="jdModalForm" onSubmit={saveMaterial}>
+                <label className="jdField">
+                  <span className="jdFieldLabel">Material</span>
+                  <MaterialAutocomplete
+                    value={matName}
+                    onChangeName={setMatName}
+                    onPick={(s) => {
+                      setMatName(s.name);
+                      setMatPrice((s.priceCents / 100).toString());
+                    }}
+                    placeholder="e.g. Drywall screws"
+                  />
+                </label>
+                <div className="jobFormRow">
+                  <label className="jdField">
+                    <span className="jdFieldLabel">Price ($)</span>
+                    <input
+                      className="adminInput"
+                      inputMode="decimal"
+                      placeholder="0.00"
+                      value={matPrice}
+                      onChange={(e) => setMatPrice(e.target.value)}
+                    />
+                  </label>
+                  <label className="jdField">
+                    <span className="jdFieldLabel">Purchased by</span>
+                    <select
+                      className="adminInput"
+                      value={matPurchaser}
+                      onChange={(e) => setMatPurchaser(e.target.value as MaterialPurchaser)}
+                    >
+                      <option value="company">Company</option>
+                      <option value="client">Client</option>
+                    </select>
+                  </label>
+                </div>
+                <label className="jdField">
+                  <span className="jdFieldLabel">Purchased at</span>
+                  <select
+                    className="adminInput"
+                    value={matStore}
+                    onChange={(e) => setMatStore(e.target.value)}
+                  >
+                    <option value="">— Store (optional) —</option>
+                    {MATERIAL_STORES.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                    <option value={STORE_OTHER}>Other…</option>
+                  </select>
+                </label>
+                {matStore === STORE_OTHER && (
+                  <label className="jdField">
+                    <span className="jdFieldLabel">Where purchased</span>
+                    <input
+                      className="adminInput"
+                      placeholder="Store or supplier name"
+                      value={matStoreCustom}
+                      onChange={(e) => setMatStoreCustom(e.target.value)}
+                      autoFocus
+                    />
+                  </label>
+                )}
+                {matError && (
+                  <p className="field-error" role="alert">
+                    {matError}
+                  </p>
+                )}
+                <div className="jdModalActions">
+                  <button
+                    type="submit"
+                    className="adminLoginBtn"
+                    style={{ marginTop: 0, width: "auto", padding: "12px 26px" }}
+                    disabled={
+                      savingMat ||
+                      !matName.trim() ||
+                      (matStore === STORE_OTHER && !matStoreCustom.trim())
+                    }
+                  >
+                    {savingMat ? "Saving…" : matEditingId ? "Save changes" : "Add material"}
+                  </button>
+                  <button
+                    type="button"
+                    className="adminTab"
+                    onClick={() => setMatModalOpen(false)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+      </section>
+
+      <section className="custPanel">
+        <div className="custPanelHead">
+          <h2 className="custPanelTitle">
+            Invoices <span className="custPanelCount">{quotes.length}</span>
+          </h2>
+        </div>
+
+        {quotes.length === 0 ? (
+          <p className="custEmptyLine">
+            No invoice yet — create one from this job&rsquo;s amount, materials, and
+            discount below.
+          </p>
+        ) : (
+          <div className="jobQuoteList">
+            {quotes.map((q) => (
+              <Link
+                key={q.id}
+                href={`/admin/customers/${q.customerId}`}
+                className="jobQuoteRow"
+              >
+                <span className="jobQuoteNum">Q-{q.number}</span>
+                <span className="jobQuoteTitle">{q.title}</span>
+                <span className={`jobQuoteStatus jqs-${q.status}`}>{q.status}</span>
+                <span className="jobQuoteTotal">{money(q.totalCents)}</span>
+                <span className="jobQuoteGo" aria-hidden>
+                  →
+                </span>
+              </Link>
+            ))}
+          </div>
+        )}
+
+        {invoiceError && (
+          <p className="field-error" role="alert" style={{ marginTop: 10 }}>
+            {invoiceError}
+          </p>
+        )}
+        <button
+          className="adminLoginBtn jobInvoiceBtn"
+          onClick={createInvoice}
+          disabled={creatingInvoice}
+        >
+          {creatingInvoice ? "Creating…" : "Create Invoice"}
+        </button>
       </section>
 
       <section className="custPanel">

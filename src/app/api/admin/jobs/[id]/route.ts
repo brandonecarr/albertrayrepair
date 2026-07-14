@@ -54,6 +54,7 @@ export async function PATCH(
   const fieldKeys = [
     "title",
     "amountDollars",
+    "discountDollars",
     "scheduledDate",
     "scheduledTime",
     "address",
@@ -64,17 +65,21 @@ export async function PATCH(
     const str = (v: unknown): string | null | undefined =>
       v === undefined ? undefined : typeof v === "string" && v.trim() ? v.trim() : null;
 
-    let amountCents: number | null | undefined;
-    if (body.amountDollars !== undefined) {
-      if (body.amountDollars === null || body.amountDollars === "") {
-        amountCents = null;
-      } else {
-        const cents = dollarsToCentsStrict(body.amountDollars);
-        if (Number.isNaN(cents)) {
-          return NextResponse.json({ error: "Invalid amount." }, { status: 400 });
-        }
-        amountCents = cents;
-      }
+    // Parse a dollars field to cents | null | undefined (undefined = unchanged).
+    const dollars = (v: unknown): number | null | undefined | "invalid" => {
+      if (v === undefined) return undefined;
+      if (v === null || v === "") return null;
+      const cents = dollarsToCentsStrict(v);
+      return Number.isNaN(cents) ? "invalid" : cents;
+    };
+
+    const amountCents = dollars(body.amountDollars);
+    if (amountCents === "invalid") {
+      return NextResponse.json({ error: "Invalid amount." }, { status: 400 });
+    }
+    const discountCents = dollars(body.discountDollars);
+    if (discountCents === "invalid") {
+      return NextResponse.json({ error: "Invalid discount." }, { status: 400 });
     }
 
     if (body.title !== undefined && (typeof body.title !== "string" || !body.title.trim())) {
@@ -84,6 +89,7 @@ export async function PATCH(
     const ok = await updateJob(id, {
       title: typeof body.title === "string" ? body.title.trim() : undefined,
       amountCents,
+      discountCents,
       scheduledDate: str(body.scheduledDate),
       scheduledTime: str(body.scheduledTime),
       address: str(body.address),

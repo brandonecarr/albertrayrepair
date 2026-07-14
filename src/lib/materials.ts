@@ -66,6 +66,30 @@ export async function addJobMaterial(
   }
 }
 
+export async function updateJobMaterial(
+  id: string,
+  input: { name: string; priceCents: number; purchaser: MaterialPurchaser; store?: string | null }
+): Promise<AdminMaterial | null> {
+  if (!isDbConfigured || !db) return null;
+  try {
+    const rows = await db
+      .update(jobMaterials)
+      .set({
+        name: input.name,
+        priceCents: input.priceCents,
+        purchaser: input.purchaser,
+        store: input.store ?? null,
+      })
+      .where(eq(jobMaterials.id, id))
+      .returning();
+    const r = rows[0];
+    return r ? toAdminMaterial(r) : null;
+  } catch (err) {
+    console.error("[db] failed to update job material:", err);
+    return null;
+  }
+}
+
 export async function deleteJobMaterial(id: string): Promise<boolean> {
   if (!isDbConfigured || !db) return false;
   try {

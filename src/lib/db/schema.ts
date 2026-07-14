@@ -217,7 +217,8 @@ export const jobs = pgTable(
     title: text("title").notNull(),
     status: jobStatus("status").notNull().default("quoted"),
 
-    amountCents: integer("amount_cents"), // quote / price in cents
+    amountCents: integer("amount_cents"), // base labor/service price in cents
+    discountCents: integer("discount_cents"), // optional invoice discount in cents
 
     scheduledDate: text("scheduled_date"), // YYYY-MM-DD
     scheduledTime: text("scheduled_time"), // e.g. "9:00 AM"

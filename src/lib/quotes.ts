@@ -108,6 +108,7 @@ function toQuote(
 
 export type CreateQuoteInput = {
   customerId: string;
+  jobId?: string | null;
   title: string;
   notes?: string | null;
   taxCents?: number | null;
@@ -125,6 +126,7 @@ export async function createQuote(input: CreateQuoteInput): Promise<string | nul
     const quoteRow = {
       id,
       customerId: input.customerId,
+      jobId: input.jobId ?? null,
       title: input.title,
       notes: input.notes ?? null,
       taxCents: tax,
@@ -316,6 +318,38 @@ export async function listQuotesForCustomer(
     return qRows.map((q) => toQuote(q, byQuote.get(q.id) ?? []));
   } catch (err) {
     console.error("[db] failed to list quotes:", err);
+    return [];
+  }
+}
+
+/** Quotes/invoices attached to a specific job, newest first. */
+export async function listQuotesForJob(jobId: string): Promise<AdminQuote[]> {
+  if (!isDbConfigured || !db) return [];
+  try {
+    const qRows = await db
+      .select()
+      .from(quotes)
+      .where(eq(quotes.jobId, jobId))
+      .orderBy(desc(quotes.createdAt));
+    if (qRows.length === 0) return [];
+
+    const ids = qRows.map((q) => q.id);
+    const liRows = await db
+      .select()
+      .from(quoteLineItems)
+      .where(inArray(quoteLineItems.quoteId, ids));
+
+    const byQuote = new Map<string, AdminQuoteLineItem[]>();
+    for (const r of liRows) {
+      const arr = byQuote.get(r.quoteId) ?? [];
+      arr.push(toLineItem(r));
+      byQuote.set(r.quoteId, arr);
+    }
+    for (const arr of byQuote.values()) arr.sort((a, b) => a.position - b.position);
+
+    return qRows.map((q) => toQuote(q, byQuote.get(q.id) ?? []));
+  } catch (err) {
+    console.error("[db] failed to list job quotes:", err);
     return [];
   }
 }
