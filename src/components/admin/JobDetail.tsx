@@ -27,6 +27,10 @@ const LABELS: Record<JobStatus, string> = {
   cancelled: "Cancelled",
 };
 
+// Preset stores for material purchases; "Other" reveals a write-in field.
+const MATERIAL_STORES = ["Home Depot", "Lowe's", "Ace Hardware"];
+const STORE_OTHER = "__other__";
+
 function money(cents: number | null): string {
   if (cents === null) return "—";
   return (cents / 100).toLocaleString("en-US", {
@@ -109,6 +113,8 @@ export default function JobDetail({
   const [matName, setMatName] = useState("");
   const [matPrice, setMatPrice] = useState("");
   const [matPurchaser, setMatPurchaser] = useState<MaterialPurchaser>("company");
+  const [matStore, setMatStore] = useState("");
+  const [matStoreCustom, setMatStoreCustom] = useState("");
   const [addingMat, setAddingMat] = useState(false);
   const [matError, setMatError] = useState<string | null>(null);
 
@@ -125,6 +131,8 @@ export default function JobDetail({
     setAddingMat(true);
     setMatError(null);
     try {
+      const store =
+        matStore === STORE_OTHER ? matStoreCustom.trim() : matStore;
       const res = await fetch(`/api/admin/jobs/${job.id}/materials`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -132,6 +140,7 @@ export default function JobDetail({
           name: matName,
           priceDollars: matPrice,
           purchaser: matPurchaser,
+          store: store || undefined,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -139,6 +148,8 @@ export default function JobDetail({
         setMaterials((m) => [data.material, ...m]);
         setMatName("");
         setMatPrice("");
+        setMatStore("");
+        setMatStoreCustom("");
       } else {
         setMatError(data.error || "Couldn't add that material. Check the price and try again.");
       }
@@ -456,10 +467,39 @@ export default function JobDetail({
             <option value="company">Company purchased</option>
             <option value="client">Client purchased</option>
           </select>
+          <select
+            className="matPurchaser"
+            value={matStore}
+            onChange={(e) => setMatStore(e.target.value)}
+            aria-label="Where purchased"
+          >
+            <option value="">Store (optional)</option>
+            {MATERIAL_STORES.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+            <option value={STORE_OTHER}>Other…</option>
+          </select>
+          {matStore === STORE_OTHER && (
+            <input
+              className="adminInput"
+              style={{ flex: "1 1 160px", minWidth: 140 }}
+              placeholder="Where was it purchased?"
+              value={matStoreCustom}
+              onChange={(e) => setMatStoreCustom(e.target.value)}
+              aria-label="Custom store name"
+              autoFocus
+            />
+          )}
           <button
             className="adminLoginBtn"
             style={{ marginTop: 0, width: "auto", padding: "12px 22px" }}
-            disabled={addingMat || !matName.trim()}
+            disabled={
+              addingMat ||
+              !matName.trim() ||
+              (matStore === STORE_OTHER && !matStoreCustom.trim())
+            }
           >
             {addingMat ? "Adding…" : "Add"}
           </button>
@@ -477,6 +517,7 @@ export default function JobDetail({
             {materials.map((m) => (
               <li key={m.id} className="matItem">
                 <span className="matName">{m.name}</span>
+                {m.store && <span className="matStore">{m.store}</span>}
                 <span className="matItemPrice">{money(m.priceCents)}</span>
                 <span className={`matTag mat-${m.purchaser}`}>
                   {m.purchaser === "company" ? "Company" : "Client"}

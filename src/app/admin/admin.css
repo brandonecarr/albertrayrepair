@@ -524,6 +524,18 @@
   font-size: 14px;
   color: #67d391;
 }
+.matStore {
+  font-family: var(--font-condensed);
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  color: var(--steel);
+  background: rgba(195, 203, 213, 0.1);
+  border: 1px solid rgba(195, 203, 213, 0.16);
+  border-radius: 999px;
+  padding: 3px 9px;
+  white-space: nowrap;
+}
 .matTag {
   font-family: var(--font-condensed);
   font-weight: 700;

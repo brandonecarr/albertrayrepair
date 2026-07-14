@@ -425,6 +425,9 @@ export const jobMaterials = pgTable(
     name: text("name").notNull(),
     priceCents: integer("price_cents").notNull().default(0),
     purchaser: materialPurchaser("purchaser").notNull().default("company"),
+    // Where it was bought — a preset (Home Depot, Lowe's, …) or a write-in.
+    // Null when not specified.
+    store: text("store"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [

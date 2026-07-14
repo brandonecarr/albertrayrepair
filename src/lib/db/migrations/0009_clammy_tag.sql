@@ -1,0 +1,1 @@
+ALTER TABLE "job_materials" ADD COLUMN "store" text;

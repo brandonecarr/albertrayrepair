@@ -12,8 +12,20 @@ export type AdminMaterial = {
   name: string;
   priceCents: number;
   purchaser: MaterialPurchaser;
+  store: string | null;
   createdAt: string;
 };
+
+function toAdminMaterial(r: typeof jobMaterials.$inferSelect): AdminMaterial {
+  return {
+    id: r.id,
+    name: r.name,
+    priceCents: r.priceCents,
+    purchaser: r.purchaser,
+    store: r.store,
+    createdAt: r.createdAt.toISOString(),
+  };
+}
 
 export async function listJobMaterials(jobId: string): Promise<AdminMaterial[]> {
   if (!isDbConfigured || !db) return [];
@@ -23,13 +35,7 @@ export async function listJobMaterials(jobId: string): Promise<AdminMaterial[]> 
       .from(jobMaterials)
       .where(eq(jobMaterials.jobId, jobId))
       .orderBy(desc(jobMaterials.createdAt));
-    return rows.map((r) => ({
-      id: r.id,
-      name: r.name,
-      priceCents: r.priceCents,
-      purchaser: r.purchaser,
-      createdAt: r.createdAt.toISOString(),
-    }));
+    return rows.map(toAdminMaterial);
   } catch (err) {
     console.error("[db] failed to list job materials:", err);
     return [];
@@ -38,7 +44,7 @@ export async function listJobMaterials(jobId: string): Promise<AdminMaterial[]> 
 
 export async function addJobMaterial(
   jobId: string,
-  input: { name: string; priceCents: number; purchaser: MaterialPurchaser }
+  input: { name: string; priceCents: number; purchaser: MaterialPurchaser; store?: string | null }
 ): Promise<AdminMaterial | null> {
   if (!isDbConfigured || !db) return null;
   try {
@@ -49,18 +55,11 @@ export async function addJobMaterial(
         name: input.name,
         priceCents: input.priceCents,
         purchaser: input.purchaser,
+        store: input.store ?? null,
       })
       .returning();
     const r = rows[0];
-    return r
-      ? {
-          id: r.id,
-          name: r.name,
-          priceCents: r.priceCents,
-          purchaser: r.purchaser,
-          createdAt: r.createdAt.toISOString(),
-        }
-      : null;
+    return r ? toAdminMaterial(r) : null;
   } catch (err) {
     console.error("[db] failed to add job material:", err);
     return null;

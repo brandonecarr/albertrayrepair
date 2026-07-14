@@ -35,10 +35,16 @@ export async function POST(
   const purchaser: MaterialPurchaser =
     body.purchaser === "client" ? "client" : "company";
 
+  const store =
+    typeof body.store === "string" && body.store.trim()
+      ? body.store.trim().slice(0, 120)
+      : null;
+
   const material = await addJobMaterial(id, {
     name: body.name.trim(),
     priceCents,
     purchaser,
+    store,
   });
   if (!material) {
     return NextResponse.json(
