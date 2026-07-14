@@ -3751,3 +3751,94 @@
     grid-column: 1 / -1;
   }
 }
+
+/* ---------- Job receipts (photo upload + vision extraction) ---------- */
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.jdHeadBtns {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.matReceiptBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.matReceiptBtn svg {
+  flex: 0 0 auto;
+}
+.matReceipts {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(195, 203, 213, 0.12);
+}
+.matReceiptsLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  color: var(--steel);
+  margin-bottom: 12px;
+}
+.receiptGrid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+}
+.receiptCard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--ink);
+  border: 1px solid rgba(195, 203, 213, 0.12);
+  border-radius: 10px;
+  padding: 8px;
+}
+.receiptThumb {
+  display: block;
+  border-radius: 7px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.25);
+  aspect-ratio: 3 / 4;
+}
+.receiptThumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.receiptActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.receiptExtractBtn {
+  flex: 1;
+  text-align: center;
+  padding: 8px 10px;
+}
+.receiptNote {
+  margin-top: 10px;
+  font-family: var(--font-condensed);
+  font-weight: 600;
+  font-size: 13px;
+  color: #67d391;
+}

@@ -1,14 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { AdminJob, AdminJobNote } from "@/lib/jobs";
 import type { AdminMaterial } from "@/lib/materials";
+import type { AdminReceipt } from "@/lib/receipts";
 import type { AdminQuote } from "@/lib/quotes";
 import type { JobStatus, MaterialPurchaser } from "@/lib/db/schema";
 import { startOfWeekIso } from "@/lib/date-utils";
 import { dollarsToCentsStrict } from "@/lib/money";
+import { CameraIcon } from "../Icons";
 import MaterialAutocomplete from "./MaterialAutocomplete";
 
 const STATUSES: JobStatus[] = [
@@ -84,11 +86,13 @@ export default function JobDetail({
   job: initial,
   initialNotes,
   initialMaterials,
+  initialReceipts,
   initialQuotes,
 }: {
   job: AdminJob;
   initialNotes: AdminJobNote[];
   initialMaterials: AdminMaterial[];
+  initialReceipts: AdminReceipt[];
   initialQuotes: AdminQuote[];
 }) {
   const router = useRouter();
@@ -234,6 +238,78 @@ export default function JobDetail({
       if (!res.ok) throw new Error();
     } catch {
       setMaterials(prev); // rollback
+    }
+  }
+
+  // Receipts (photos of store receipts, kept per job). The hidden file input has
+  // no `capture` attribute so mobile browsers offer camera OR photo library.
+  const [receipts, setReceipts] = useState<AdminReceipt[]>(initialReceipts);
+  const receiptInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingReceipt, setUploadingReceipt] = useState(false);
+  const [extractingId, setExtractingId] = useState<string | null>(null);
+  const [receiptError, setReceiptError] = useState<string | null>(null);
+  const [receiptNote, setReceiptNote] = useState<string | null>(null);
+
+  async function onReceiptPicked(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-picking the same file
+    if (!file) return;
+    setUploadingReceipt(true);
+    setReceiptError(null);
+    setReceiptNote(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch(`/api/admin/jobs/${job.id}/receipts`, {
+        method: "POST",
+        body: fd,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.receipt) {
+        setReceipts((r) => [data.receipt, ...r]);
+      } else {
+        setReceiptError(data.error || "Couldn't upload that photo. Please try again.");
+      }
+    } catch {
+      setReceiptError("Couldn't upload that photo. Please try again.");
+    } finally {
+      setUploadingReceipt(false);
+    }
+  }
+
+  async function extractReceipt(receiptId: string) {
+    setExtractingId(receiptId);
+    setReceiptError(null);
+    setReceiptNote(null);
+    try {
+      const res = await fetch(`/api/admin/jobs/${job.id}/receipts/${receiptId}/extract`, {
+        method: "POST",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && Array.isArray(data.materials)) {
+        setMaterials((m) => [...data.materials, ...m]);
+        const n = data.materials.length;
+        setReceiptNote(`Added ${n} ${n === 1 ? "item" : "items"} from the receipt.`);
+      } else {
+        setReceiptError(data.error || "Couldn't read that receipt. Please try again.");
+      }
+    } catch {
+      setReceiptError("Couldn't read that receipt. Please try again.");
+    } finally {
+      setExtractingId(null);
+    }
+  }
+
+  async function deleteReceipt(receiptId: string) {
+    const prev = receipts;
+    setReceipts((r) => r.filter((x) => x.id !== receiptId));
+    try {
+      const res = await fetch(`/api/admin/jobs/${job.id}/receipts/${receiptId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error();
+    } catch {
+      setReceipts(prev); // rollback
     }
   }
 
@@ -575,9 +651,27 @@ export default function JobDetail({
           <h2 className="custPanelTitle">
             Materials <span className="custPanelCount">{materials.length}</span>
           </h2>
-          <button className="adminTab" onClick={openAddMaterial}>
-            + Add material
-          </button>
+          <div className="jdHeadBtns">
+            <button
+              type="button"
+              className="adminTab matReceiptBtn"
+              onClick={() => receiptInputRef.current?.click()}
+              disabled={uploadingReceipt}
+            >
+              <CameraIcon aria-hidden />
+              {uploadingReceipt ? "Uploading…" : "Receipt"}
+            </button>
+            <button className="adminTab" onClick={openAddMaterial}>
+              + Add material
+            </button>
+          </div>
+          <input
+            ref={receiptInputRef}
+            type="file"
+            accept="image/*"
+            className="visuallyHidden"
+            onChange={onReceiptPicked}
+          />
         </div>
 
         {(companyCents > 0 || clientCents > 0) && (
@@ -729,6 +823,55 @@ export default function JobDetail({
             </div>
           </div>
         )}
+
+        <div className="matReceipts">
+          <p className="matReceiptsLabel">
+            Receipts <span className="custPanelCount">{receipts.length}</span>
+          </p>
+          {receipts.length === 0 ? (
+            <p className="custEmptyLine">
+              No receipts yet — tap <strong>Receipt</strong> to snap or upload a photo.
+            </p>
+          ) : (
+            <ul className="receiptGrid">
+              {receipts.map((r) => (
+                <li key={r.id} className="receiptCard">
+                  <a href={r.url} target="_blank" rel="noopener noreferrer" className="receiptThumb">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={r.url} alt="Receipt" loading="lazy" />
+                  </a>
+                  <div className="receiptActions">
+                    <button
+                      type="button"
+                      className="adminTab receiptExtractBtn"
+                      onClick={() => extractReceipt(r.id)}
+                      disabled={extractingId === r.id}
+                    >
+                      {extractingId === r.id ? "Reading…" : "Extract items"}
+                    </button>
+                    <button
+                      type="button"
+                      className="jobNoteDel"
+                      onClick={() => deleteReceipt(r.id)}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+          {receiptNote && (
+            <p className="receiptNote" role="status">
+              {receiptNote}
+            </p>
+          )}
+          {receiptError && (
+            <p className="field-error" role="alert" style={{ marginTop: 8 }}>
+              {receiptError}
+            </p>
+          )}
+        </div>
       </section>
 
       <section className="custPanel">

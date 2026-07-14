@@ -147,3 +147,10 @@ export const MailIcon = (p: SVGProps<SVGSVGElement>) => (
     <path d="m3 7 9 6 9-6" />
   </svg>
 );
+
+export const CameraIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base} width={18} height={18} {...p}>
+    <path d="M4 7h3l1.5-2h7L17 7h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1z" />
+    <circle cx="12" cy="13" r="3.5" />
+  </svg>
+);

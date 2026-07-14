@@ -469,3 +469,26 @@ export const workPhotos = pgTable(
 
 export type WorkPhoto = typeof workPhotos.$inferSelect;
 export type NewWorkPhoto = typeof workPhotos.$inferInsert;
+
+/**
+ * Job receipts — photos of store receipts Albert keeps per job. Images live in
+ * blob storage (Vercel Blob); this table holds the public URL and the blob
+ * pathname (for deletion). Cascades with the job. An uploaded receipt can be
+ * run through vision extraction to auto-add its line items as job materials.
+ */
+export const jobReceipts = pgTable(
+  "job_receipts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    jobId: uuid("job_id")
+      .notNull()
+      .references(() => jobs.id, { onDelete: "cascade" }),
+    url: text("url").notNull(), // public blob URL
+    pathname: text("pathname").notNull(), // blob pathname, for deletion
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("job_receipts_job_idx").on(t.jobId)]
+);
+
+export type JobReceipt = typeof jobReceipts.$inferSelect;
+export type NewJobReceipt = typeof jobReceipts.$inferInsert;

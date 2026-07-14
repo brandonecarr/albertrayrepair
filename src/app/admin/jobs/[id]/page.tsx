@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { isDbConfigured } from "@/lib/db";
 import { getJobById, listJobNotes } from "@/lib/jobs";
 import { listJobMaterials } from "@/lib/materials";
+import { listJobReceipts } from "@/lib/receipts";
 import { listQuotesForJob } from "@/lib/quotes";
 import AdminTopBar from "@/components/admin/AdminTopBar";
 import JobDetail from "@/components/admin/JobDetail";
@@ -34,9 +35,10 @@ export default async function JobPage(ctx: {
 
   const job = await getJobById(id);
   if (!job) notFound();
-  const [notes, materials, quotes] = await Promise.all([
+  const [notes, materials, receipts, quotes] = await Promise.all([
     listJobNotes(id),
     listJobMaterials(id),
+    listJobReceipts(id),
     listQuotesForJob(id),
   ]);
 
@@ -51,6 +53,7 @@ export default async function JobPage(ctx: {
           job={job}
           initialNotes={notes}
           initialMaterials={materials}
+          initialReceipts={receipts}
           initialQuotes={quotes}
         />
       </main>
