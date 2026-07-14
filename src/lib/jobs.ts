@@ -47,7 +47,9 @@ export type AdminJob = {
   title: string;
   status: JobStatus;
   amountCents: number | null;
-  discountCents: number | null;
+  discountType: string | null; // 'fixed' | 'percent' | null
+  discountCents: number | null; // fixed discounts
+  discountBps: number | null; // percent discounts (basis points)
   scheduledDate: string | null;
   scheduledTime: string | null;
   address: string | null;
@@ -68,7 +70,9 @@ function toAdminJob(j: Job, customerName: string | null = null): AdminJob {
     title: j.title,
     status: j.status,
     amountCents: j.amountCents,
+    discountType: j.discountType,
     discountCents: j.discountCents,
+    discountBps: j.discountBps,
     scheduledDate: j.scheduledDate,
     scheduledTime: j.scheduledTime,
     address: j.address,
@@ -443,7 +447,9 @@ export async function setJobStatus(
 type JobPatch = {
   title?: string;
   amountCents?: number | null;
+  discountType?: string | null;
   discountCents?: number | null;
+  discountBps?: number | null;
   scheduledDate?: string | null;
   scheduledTime?: string | null;
   address?: string | null;
@@ -457,7 +463,9 @@ export async function updateJob(id: string, patch: JobPatch): Promise<boolean> {
     const set: Partial<typeof jobs.$inferInsert> = { updatedAt: new Date() };
     if (patch.title !== undefined) set.title = patch.title;
     if (patch.amountCents !== undefined) set.amountCents = patch.amountCents;
+    if (patch.discountType !== undefined) set.discountType = patch.discountType;
     if (patch.discountCents !== undefined) set.discountCents = patch.discountCents;
+    if (patch.discountBps !== undefined) set.discountBps = patch.discountBps;
     if (patch.scheduledDate !== undefined) set.scheduledDate = patch.scheduledDate;
     if (patch.scheduledTime !== undefined) set.scheduledTime = patch.scheduledTime;
     if (patch.address !== undefined) set.address = patch.address;

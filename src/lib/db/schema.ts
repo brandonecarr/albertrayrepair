@@ -218,7 +218,12 @@ export const jobs = pgTable(
     status: jobStatus("status").notNull().default("quoted"),
 
     amountCents: integer("amount_cents"), // base labor/service price in cents
-    discountCents: integer("discount_cents"), // optional invoice discount in cents
+    // Optional invoice discount. `discountType` is 'fixed' or 'percent' (null =
+    // none). Fixed discounts use `discountCents`; percent discounts use
+    // `discountBps` (basis points, e.g. 1000 = 10%).
+    discountType: text("discount_type"),
+    discountCents: integer("discount_cents"),
+    discountBps: integer("discount_bps"),
 
     scheduledDate: text("scheduled_date"), // YYYY-MM-DD
     scheduledTime: text("scheduled_time"), // e.g. "9:00 AM"

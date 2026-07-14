@@ -21,15 +21,18 @@ export async function createInvoiceFromJob(jobId: string): Promise<AdminQuote | 
   const lines: QuoteLineInput[] = [];
 
   // Base — what Albert is charging (the job AMOUNT field).
+  const baseCents = job.amountCents ?? 0;
   lines.push({
     description: job.title || "Labor & service",
     quantity: 1,
-    unitAmountCents: job.amountCents ?? 0,
+    unitAmountCents: baseCents,
   });
 
   // Company-purchased materials — charged.
+  let companyTotal = 0;
   for (const m of materials) {
     if (m.purchaser !== "company") continue;
+    companyTotal += m.priceCents;
     lines.push({
       description: label(m.name, m.store),
       quantity: 1,
@@ -47,9 +50,22 @@ export async function createInvoiceFromJob(jobId: string): Promise<AdminQuote | 
     });
   }
 
-  // Discount — subtracted from the total.
-  if (job.discountCents && job.discountCents > 0) {
-    lines.push({ description: "Discount", quantity: 1, unitAmountCents: -job.discountCents });
+  // Discount — fixed dollars or a percent of the charged subtotal (base +
+  // company materials). Never more than the subtotal itself.
+  const chargedSubtotal = baseCents + companyTotal;
+  let discountCents = 0;
+  let discountLabel = "Discount";
+  if (job.discountType === "fixed" && job.discountCents && job.discountCents > 0) {
+    discountCents = Math.min(job.discountCents, chargedSubtotal);
+  } else if (job.discountType === "percent" && job.discountBps && job.discountBps > 0) {
+    discountCents = Math.min(
+      Math.round((chargedSubtotal * job.discountBps) / 10000),
+      chargedSubtotal
+    );
+    discountLabel = `Discount (${job.discountBps / 100}%)`;
+  }
+  if (discountCents > 0) {
+    lines.push({ description: discountLabel, quantity: 1, unitAmountCents: -discountCents });
   }
 
   const quoteId = await createQuote({

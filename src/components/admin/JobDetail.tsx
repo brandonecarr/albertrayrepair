@@ -41,6 +41,21 @@ function money(cents: number | null): string {
   });
 }
 
+/** The editable discount value string for a job (percent points or dollars). */
+function discountValueOf(j: AdminJob): string {
+  if (j.discountType === "percent") {
+    return j.discountBps != null ? (j.discountBps / 100).toString() : "";
+  }
+  return j.discountCents != null ? (j.discountCents / 100).toString() : "";
+}
+
+/** How the discount reads in the summary, e.g. "−$50" or "−10%". */
+function discountDisplay(j: AdminJob): string | null {
+  if (j.discountType === "percent" && j.discountBps) return `−${j.discountBps / 100}%`;
+  if (j.discountType === "fixed" && j.discountCents) return `−${money(j.discountCents)}`;
+  return null;
+}
+
 function fmtDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", {
     month: "short",
@@ -241,7 +256,10 @@ export default function JobDetail({
   const [form, setForm] = useState({
     title: initial.title,
     amountDollars: initial.amountCents != null ? (initial.amountCents / 100).toString() : "",
-    discountDollars: initial.discountCents != null ? (initial.discountCents / 100).toString() : "",
+    discountValue: discountValueOf(initial),
+    discountKind: (initial.discountType === "percent" ? "percent" : "fixed") as
+      | "fixed"
+      | "percent",
     scheduledDate: initial.scheduledDate ?? "",
     scheduledTime: initial.scheduledTime ?? "",
     address: initial.address ?? "",
@@ -274,12 +292,27 @@ export default function JobDetail({
       setSaveError("Enter a valid amount (e.g. 1250 or 1,250.50).");
       return;
     }
-    const trimmedDiscount = form.discountDollars.trim();
-    const discountCents = trimmedDiscount === "" ? null : dollarsToCentsStrict(trimmedDiscount);
-    if (discountCents !== null && Number.isNaN(discountCents)) {
-      setSaveError("Enter a valid discount amount.");
-      return;
+    const discVal = form.discountValue.trim();
+    if (discVal !== "") {
+      const n = Number(discVal.replace(/[$,%\s]/g, ""));
+      if (!Number.isFinite(n) || n < 0) {
+        setSaveError("Enter a valid discount.");
+        return;
+      }
+      if (form.discountKind === "percent" && n > 100) {
+        setSaveError("A percent discount can't be more than 100%.");
+        return;
+      }
     }
+    // Local discount fields for the optimistic update (server also validates).
+    const discNum = discVal ? Number(discVal.replace(/[$,%\s]/g, "")) : null;
+    const nextDiscount =
+      discNum == null
+        ? { discountType: null, discountCents: null, discountBps: null }
+        : form.discountKind === "percent"
+          ? { discountType: "percent", discountCents: null, discountBps: Math.round(discNum * 100) }
+          : { discountType: "fixed", discountCents: Math.round(discNum * 100), discountBps: null };
+
     setSaving(true);
     setSaveError(null);
     try {
@@ -289,7 +322,8 @@ export default function JobDetail({
         body: JSON.stringify({
           title: form.title,
           amountDollars: form.amountDollars,
-          discountDollars: form.discountDollars,
+          discountType: discVal ? form.discountKind : "none",
+          discountValue: form.discountValue,
           scheduledDate: form.scheduledDate,
           scheduledTime: form.scheduledTime,
           address: form.address,
@@ -305,7 +339,7 @@ export default function JobDetail({
         ...j,
         title: form.title.trim() || j.title,
         amountCents: cents,
-        discountCents,
+        ...nextDiscount,
         scheduledDate: form.scheduledDate || null,
         scheduledTime: form.scheduledTime || null,
         address: form.address.trim() || null,
@@ -403,8 +437,8 @@ export default function JobDetail({
                 }
               />
               <Field label="Status" value={LABELS[job.status]} />
-              {job.discountCents ? (
-                <Field label="Discount" value={`−${money(job.discountCents)}`} />
+              {discountDisplay(job) ? (
+                <Field label="Discount" value={discountDisplay(job)} />
               ) : null}
               <Field label="Address" value={job.address} full />
               {job.notes && (
@@ -434,14 +468,29 @@ export default function JobDetail({
                   onChange={(e) => setForm((f) => ({ ...f, amountDollars: e.target.value }))}
                 />
               </EditRow>
-              <EditRow label="Discount ($)">
-                <input
-                  className="adminInput"
-                  inputMode="decimal"
-                  placeholder="0.00"
-                  value={form.discountDollars}
-                  onChange={(e) => setForm((f) => ({ ...f, discountDollars: e.target.value }))}
-                />
+              <EditRow label="Discount">
+                <div style={{ display: "flex", gap: 8 }}>
+                  <input
+                    className="adminInput"
+                    inputMode="decimal"
+                    placeholder="0"
+                    value={form.discountValue}
+                    onChange={(e) => setForm((f) => ({ ...f, discountValue: e.target.value }))}
+                    style={{ flex: 1, minWidth: 0 }}
+                  />
+                  <select
+                    className="adminInput"
+                    value={form.discountKind}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, discountKind: e.target.value as "fixed" | "percent" }))
+                    }
+                    aria-label="Discount type"
+                    style={{ width: 74, flex: "0 0 auto" }}
+                  >
+                    <option value="fixed">$</option>
+                    <option value="percent">%</option>
+                  </select>
+                </div>
               </EditRow>
             </div>
             <div className="jobFormRow">
@@ -493,7 +542,8 @@ export default function JobDetail({
                   setForm({
                     title: job.title,
                     amountDollars: job.amountCents != null ? (job.amountCents / 100).toString() : "",
-                    discountDollars: job.discountCents != null ? (job.discountCents / 100).toString() : "",
+                    discountValue: discountValueOf(job),
+                    discountKind: job.discountType === "percent" ? "percent" : "fixed",
                     scheduledDate: job.scheduledDate ?? "",
                     scheduledTime: job.scheduledTime ?? "",
                     address: job.address ?? "",

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { setJobStatus, updateJob } from "@/lib/jobs";
-import { dollarsToCentsStrict } from "@/lib/money";
+import { dollarsToCentsStrict, parseMoney } from "@/lib/money";
 import type { JobStatus } from "@/lib/db/schema";
 
 export const runtime = "nodejs";
@@ -54,7 +54,8 @@ export async function PATCH(
   const fieldKeys = [
     "title",
     "amountDollars",
-    "discountDollars",
+    "discountType",
+    "discountValue",
     "scheduledDate",
     "scheduledTime",
     "address",
@@ -77,9 +78,38 @@ export async function PATCH(
     if (amountCents === "invalid") {
       return NextResponse.json({ error: "Invalid amount." }, { status: 400 });
     }
-    const discountCents = dollars(body.discountDollars);
-    if (discountCents === "invalid") {
-      return NextResponse.json({ error: "Invalid discount." }, { status: 400 });
+
+    // Discount: a type ('fixed' | 'percent') + a value. Empty value clears it.
+    let discount:
+      | { discountType?: string | null; discountCents?: number | null; discountBps?: number | null }
+      | "invalid" = {};
+    if (body.discountType !== undefined || body.discountValue !== undefined) {
+      const type = body.discountType;
+      const raw = body.discountValue;
+      const valStr =
+        typeof raw === "string" ? raw.trim() : raw == null ? "" : String(raw);
+      if (!type || type === "none" || valStr === "") {
+        discount = { discountType: null, discountCents: null, discountBps: null };
+      } else if (type === "fixed") {
+        const cents = dollarsToCentsStrict(valStr);
+        discount = Number.isNaN(cents)
+          ? "invalid"
+          : { discountType: "fixed", discountCents: cents, discountBps: null };
+      } else if (type === "percent") {
+        const pct = parseMoney(valStr);
+        discount =
+          !Number.isFinite(pct) || pct < 0 || pct > 100
+            ? "invalid"
+            : { discountType: "percent", discountBps: Math.round(pct * 100), discountCents: null };
+      } else {
+        discount = "invalid";
+      }
+    }
+    if (discount === "invalid") {
+      return NextResponse.json(
+        { error: "Enter a valid discount (a dollar amount, or a percent from 0–100)." },
+        { status: 400 }
+      );
     }
 
     if (body.title !== undefined && (typeof body.title !== "string" || !body.title.trim())) {
@@ -89,7 +119,7 @@ export async function PATCH(
     const ok = await updateJob(id, {
       title: typeof body.title === "string" ? body.title.trim() : undefined,
       amountCents,
-      discountCents,
+      ...discount,
       scheduledDate: str(body.scheduledDate),
       scheduledTime: str(body.scheduledTime),
       address: str(body.address),
