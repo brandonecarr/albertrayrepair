@@ -37,7 +37,7 @@ export default async function CustomerDetailPage(ctx: {
   const customer = await getCustomer(id);
   if (!customer) notFound();
 
-  const [leads, jobs, quotes, payments, lifetimeSpentCents] = await Promise.all([
+  const [leads, jobs, invoices, payments, lifetimeSpentCents] = await Promise.all([
     listLeadsForCustomer(id),
     listJobsForCustomer(id),
     listQuotesForCustomer(id),
@@ -56,7 +56,7 @@ export default async function CustomerDetailPage(ctx: {
           customer={customer}
           leads={leads}
           jobs={jobs}
-          quotes={quotes}
+          invoices={invoices}
           payments={payments}
           lifetimeSpentCents={lifetimeSpentCents}
         />

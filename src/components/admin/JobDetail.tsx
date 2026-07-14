@@ -32,6 +32,13 @@ const LABELS: Record<JobStatus, string> = {
 const MATERIAL_STORES = ["Home Depot", "Lowe's", "Ace Hardware"];
 const STORE_OTHER = "__other__";
 
+const INVOICE_STATUS_LABEL: Record<string, string> = {
+  draft: "Draft",
+  sent: "Sent",
+  accepted: "Paid",
+  declined: "Void",
+};
+
 function money(cents: number | null): string {
   if (cents === null) return "—";
   return (cents / 100).toLocaleString("en-US", {
@@ -739,14 +746,12 @@ export default function JobDetail({
         ) : (
           <div className="jobQuoteList">
             {quotes.map((q) => (
-              <Link
-                key={q.id}
-                href={`/admin/customers/${q.customerId}`}
-                className="jobQuoteRow"
-              >
-                <span className="jobQuoteNum">Q-{q.number}</span>
+              <Link key={q.id} href={`/admin/invoices/${q.id}`} className="jobQuoteRow">
+                <span className="jobQuoteNum">#{q.number}</span>
                 <span className="jobQuoteTitle">{q.title}</span>
-                <span className={`jobQuoteStatus jqs-${q.status}`}>{q.status}</span>
+                <span className={`jobQuoteStatus jqs-${q.status}`}>
+                  {INVOICE_STATUS_LABEL[q.status] ?? q.status}
+                </span>
                 <span className="jobQuoteTotal">{money(q.totalCents)}</span>
                 <span className="jobQuoteGo" aria-hidden>
                   →

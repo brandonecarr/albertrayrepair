@@ -10,8 +10,14 @@ import type { AdminQuote } from "@/lib/quotes";
 import type { AdminPayment } from "@/lib/payments";
 import type { JobStatus } from "@/lib/db/schema";
 import { PhoneIcon, MailIcon } from "@/components/Icons";
-import QuotesPanel from "./QuotesPanel";
 import PaymentsPanel from "./PaymentsPanel";
+
+const INVOICE_STATUS_LABEL: Record<string, string> = {
+  draft: "Draft",
+  sent: "Sent",
+  accepted: "Paid",
+  declined: "Void",
+};
 
 /** Minimal customer shape used for merge / reassign target pickers. */
 export type CustomerLite = { id: string; name: string; phone: string | null; email: string | null };
@@ -90,14 +96,14 @@ export default function CustomerDetail({
   customer,
   leads,
   jobs: initialJobs,
-  quotes,
+  invoices,
   payments,
   lifetimeSpentCents,
 }: {
   customer: AdminCustomer;
   leads: AdminLead[];
   jobs: AdminJob[];
-  quotes: AdminQuote[];
+  invoices: AdminQuote[];
   payments: AdminPayment[];
   lifetimeSpentCents: number;
 }) {
@@ -442,8 +448,35 @@ export default function CustomerDetail({
         )}
       </section>
 
-      {/* QUOTES */}
-      <QuotesPanel customerId={customer.id} quotes={quotes} />
+      {/* INVOICES */}
+      <section className="custPanel">
+        <div className="custPanelHead">
+          <h2 className="custPanelTitle">
+            Invoices <span className="custPanelCount">{invoices.length}</span>
+          </h2>
+        </div>
+        {invoices.length === 0 ? (
+          <p className="custEmptyLine">
+            No invoices yet — create one from a job&rsquo;s page.
+          </p>
+        ) : (
+          <div className="jobQuoteList">
+            {invoices.map((inv) => (
+              <Link key={inv.id} href={`/admin/invoices/${inv.id}`} className="jobQuoteRow">
+                <span className="jobQuoteNum">#{inv.number}</span>
+                <span className="jobQuoteTitle">{inv.title}</span>
+                <span className={`jobQuoteStatus jqs-${inv.status}`}>
+                  {INVOICE_STATUS_LABEL[inv.status] ?? inv.status}
+                </span>
+                <span className="jobQuoteTotal">{money(inv.totalCents)}</span>
+                <span className="jobQuoteGo" aria-hidden>
+                  →
+                </span>
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
 
       {/* PAYMENTS */}
       <PaymentsPanel customerId={customer.id} payments={payments} />
@@ -565,7 +598,7 @@ function MergePanel({
   const [err, setErr] = useState("");
 
   async function merge(duplicateId: string, name: string) {
-    if (!confirm(`Merge "${name}" into this customer? Their leads, jobs, quotes, and payments move here and "${name}" is removed.`)) {
+    if (!confirm(`Merge "${name}" into this customer? Their leads, jobs, invoices, and payments move here and "${name}" is removed.`)) {
       return;
     }
     setBusy(true);

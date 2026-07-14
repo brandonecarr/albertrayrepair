@@ -686,6 +686,53 @@
   width: 100%;
   margin-top: 0;
 }
+
+/* ---------- Invoice detail line items ---------- */
+.invLines {
+  display: flex;
+  flex-direction: column;
+  margin-top: 6px;
+  border: 1px solid rgba(195, 203, 213, 0.14);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.invLine {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 14px;
+  border-bottom: 1px solid rgba(195, 203, 213, 0.1);
+}
+.invLine:last-child {
+  border-bottom: none;
+}
+.invLineDesc {
+  flex: 1;
+  min-width: 0;
+  font-size: 13.5px;
+  color: var(--bone);
+}
+.invLineAmt {
+  font-family: var(--font-condensed);
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--bone);
+  white-space: nowrap;
+}
+.invLineTotal {
+  background: rgba(242, 106, 31, 0.08);
+}
+.invLineTotal .invLineDesc {
+  font-family: var(--font-display);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.invLineTotal .invLineAmt {
+  font-size: 17px;
+  color: #67d391;
+}
 .matTag {
   font-family: var(--font-condensed);
   font-weight: 700;
